@@ -1,10 +1,29 @@
 # parametrisation of model
 
+# This file allows you to test multiple soil configurations based on the inputs you give  
+# in the parameter file defined by input_file_name. The results and plots will be created
+# in folders. The loop recreates the starting soil carbon content if parameters are changed
+# between the runs. 
+
+# To run: 
+# 1. Ensure your working directory is the same as the repository. 
+# 2. change the input file name to reflect the parameter file
+# This can include as many tests as you would like. Just ensure a unique description is 
+# used for each file. 
+# 3. Run the code and review the results. 
+
+
+# TODO: 
+# - Average the starting_soil_content
+# - Ensure that the crop and location inputs vary based on input data
+# - Validate results! 
+
+
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
 
 
-working_dir <- file.path("C:", "Users", "clare", "Desktop", "Git", "RothC")
+working_dir <- getwd()
 
 source(file.path(working_dir, "model_functions.R"))
 
@@ -80,10 +99,10 @@ for (i in 1:no_tests){
     # if the soil_thickness, clay content, c_inputs or pE changes, need to rerun the starting_soil_content_calculation
     soil_thick != soil_thick0 | clay != clay0 | c_inputs != c_inputs0 | pE != pE0 | temp_adjustment != temp_adjustment0 | SOC != SOC0
   ){
-    print("New starting soil content calculated")
-    print(c(
-      soil_thick, soil_thick0, clay, clay0, c_inputs, c_inputs0, pE, pE0, temp_adjustment, temp_adjustment0, SOC, SOC0
-    ))
+    # print("New starting soil content calculated")
+    # print(c(
+    #   soil_thick, soil_thick0, clay, clay0, c_inputs, c_inputs0, pE, pE0, temp_adjustment, temp_adjustment0, SOC, SOC0
+    # ))
     
     FallIOM <- 0.049 * SOC^(1.139)
     
@@ -131,7 +150,7 @@ for (i in 1:no_tests){
   print(tibble(desc, C))
   
   if (i == 1){
-    all_results <- tibble(desc, C)
+    all_results <- data.frame(desc, C)
   }else{
     all_results <- rbind(all_results, c(desc, C))
   }
