@@ -4,7 +4,7 @@
 
 calc_soil_carbon <- function(
   time_horizon = 10,
-  bare = TRUE, 
+  bare = TRUE,   # This can be a logical, or a string of 12 logicals
   temp = temp,
   precip = precip,
   evap = evap,
@@ -24,15 +24,28 @@ calc_soil_carbon <- function(
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
   
-  # Calculate monthly moisture effects
-  fW <- fW.RothC(
-    P = (precip), 
-    E = (evap),
-    S.Thick = soil_thick, 
-    pClay = clay,
-    pE = pE, 
-    bare = bare
-  )$b 
+  if(length(bare) == 1){
+    # Calculate monthly moisture effects
+    fW <- fW.RothC(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare = bare
+    )$b 
+  }else if(length(bare) == 12){ 
+    
+    # Use the modified version if there is monthly variation in coverage
+    fW <- fW.RothC.Modified(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare_profile = bare
+    )$b 
+  }
   
   # Moisture factors over time
   xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
@@ -57,6 +70,7 @@ calc_soil_carbon <- function(
   # Generates and saves output plot
   plot_c_stocks(years, c_t, description)
   
+  write.csv(fW,paste0(description,"_fW.csv"))
   
   return(c_t)
   
@@ -97,3 +111,18 @@ plot_c_stocks <- function(years,
   
 }
 
+
+get_bare_profile <- function(input_parameters_0){
+  
+  # input_parameters should be a single line of the input_parameter file
+  
+  input_parameters_0 <- input_parameters[i,]
+  
+  ip0 <- input_parameters_0 %>% select(contains("bare_profile"))
+  
+  if(ncol(ip0) != 12){stop("Missing information about the bare profile months. ")}
+  
+  bare_profile <- as.data.frame(t(ip0))$V1
+  
+  return(bare_profile)    
+}

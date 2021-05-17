@@ -24,6 +24,8 @@ precip <- c(
 # Evaporation - Mean values from 1991 - 2020
 evap <- c( 10, 15, 33, 53, 52, 61, 69, 51, 32, 19, 9, 7)
 
+bare_profile <- c(1,1,1,0,0,0,0,1,1,1,1,1)
+
 soil_thick <- 25 # Soil thickness (organic layer topsoil), in cm
 SOC <- 39 # Soil organic carbon in Mg/ha
 clay <- 18 # Percent clay
@@ -36,7 +38,7 @@ time_horizon <- 10
 # Sensitivity check
 C0_df <- calc_soil_carbon(
   time_horizon = 500,
-  bare = FALSE, 
+  bare = bare_profile, 
   temp = temp,
   precip = precip,
   evap = evap,
