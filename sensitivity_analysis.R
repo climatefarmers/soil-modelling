@@ -26,12 +26,13 @@ p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
 working_dir <- getwd()
 
 source(file.path(working_dir, "model_functions.R"))
+source(file.path(working_dir, "modified_functions.R"))
 
 
-input_file_name <- "test.csv"
+input_file_name <- "test_bare_profile.csv"
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccddddddld")
+                             col_types = "cccdddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
@@ -43,7 +44,7 @@ all_results <- NA
 # Temperature (Wetterstation Lindenberg)
 # 40 Year Mean Temperature/Month
 temp0 <- c(2.6, 4.2, 8.5, 14.5, 19.5, 22.3, 24.5, 24.3, 
-          19.4, 13.7, 7.2, 3.5)
+           19.4, 13.7, 7.2, 3.5)
 
 # Precipitation - monthly mean values from 1981 to 2020
 precip <- c(42, 35, 41, 34, 52, 62, 70, 60, 43, 39, 42, 47)
@@ -60,45 +61,48 @@ for (i in 1:no_tests){
   clay <- input_parameters$clay[i]
   c_inputs <- input_parameters$c_inputs[i]
   pE <- input_parameters$pE[i]
-  bare <- input_parameters$bare[i]
+  # bare <- input_parameters$bare[i]
   time_horizon <- input_parameters$time_horizon[i]
   temp_adjustment <- input_parameters$temp_adjustment[i]
+  bare_profile <- get_bare_profile(input_parameters[i])
+  
+  # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
   FallIOM <- 0.049 * SOC^(1.139) # IOM using Falloon method
   
   temp <- temp0 + temp_adjustment 
   
-  if(i == 1){
-    # Sensitivity check
-    C0_df <- calc_soil_carbon(
-      time_horizon = 500,
-      bare = FALSE, 
-      temp = temp,
-      precip = precip,
-      evap = evap,
-      soil_thick = soil_thick,
-      clay = clay,
-      c_inputs = c_inputs,
-      pE = pE,
-      PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
-      description = "Base Case"
-    )
-    C0 <- get_total_C(C0_df)
-    
-    starting_soil_content <- as.numeric(tail(C0_df, 1))
-    
-    
-    soil_thick0 <- soil_thick
-    clay0 <- clay
-    c_inputs0 <- c_inputs
-    pE0 <- pE
-    temp_adjustment0 <- temp_adjustment
-    SOC0 <- SOC
-    
-  } else if (
-    # if the soil_thickness, clay content, c_inputs or pE changes, need to rerun the starting_soil_content_calculation
-    soil_thick != soil_thick0 | clay != clay0 | c_inputs != c_inputs0 | pE != pE0 | temp_adjustment != temp_adjustment0 | SOC != SOC0
-  ){
+  # if(i == 1){
+  #   # Sensitivity check
+  #   C0_df <- calc_soil_carbon(
+  #     time_horizon = 500,
+  #     bare = bare_profile, 
+  #     temp = temp,
+  #     precip = precip,
+  #     evap = evap,
+  #     soil_thick = soil_thick,
+  #     clay = clay,
+  #     c_inputs = c_inputs,
+  #     pE = pE,
+  #     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
+  #     description = "Base Case"
+  #   )
+  #   C0 <- get_total_C(C0_df)
+  #   
+  #   starting_soil_content <- as.numeric(tail(C0_df, 1))
+  #   
+  #   
+  #   soil_thick0 <- soil_thick
+  #   clay0 <- clay
+  #   c_inputs0 <- c_inputs
+  #   pE0 <- pE
+  #   temp_adjustment0 <- temp_adjustment
+  #   SOC0 <- SOC
+  #   
+  # } else if (
+  #   # if the soil_thickness, clay content, c_inputs or pE changes, need to rerun the starting_soil_content_calculation
+  #   soil_thick != soil_thick0 | clay != clay0 | c_inputs != c_inputs0 | pE != pE0 | temp_adjustment != temp_adjustment0 | SOC != SOC0
+  # ){
     # print("New starting soil content calculated")
     # print(c(
     #   soil_thick, soil_thick0, clay, clay0, c_inputs, c_inputs0, pE, pE0, temp_adjustment, temp_adjustment0, SOC, SOC0
@@ -119,22 +123,23 @@ for (i in 1:no_tests){
       PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
       description = "Base Case"
     )
-  C0 <- get_total_C(C0_df)
-  
-  starting_soil_content <- as.numeric(tail(C0_df, 1))
-  
-  soil_thick0 <- soil_thick
-  clay0 <- clay
-  c_inputs0 <- c_inputs
-  pE0 <- pE
-  temp_adjustment0 <- temp_adjustment
-  SOC0 <- SOC
-  
-  }
+    
+    C0 <- get_total_C(C0_df)
+    
+    starting_soil_content <- as.numeric(tail(C0_df, 1))
+    
+    soil_thick0 <- soil_thick
+    clay0 <- clay
+    c_inputs0 <- c_inputs
+    pE0 <- pE
+    temp_adjustment0 <- temp_adjustment
+    SOC0 <- SOC
+    
+  # }
   
   C_df <- calc_soil_carbon(
     time_horizon = time_horizon,
-    bare = bare, 
+    bare = bare_profile, 
     temp = temp,
     precip = precip,
     evap = evap,
