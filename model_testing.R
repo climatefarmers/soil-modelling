@@ -2,7 +2,7 @@ if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve)
 
 
-working_dir <- get_wd()
+working_dir <- getwd()
 
 source(file.path(working_dir, "model_functions.R"))
 
