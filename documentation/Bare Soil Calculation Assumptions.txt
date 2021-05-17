@@ -1,0 +1,21 @@
+Soil Coverage
+
+The RothCModel takes a moisture factor as one of the inputs. This is calculated using the function fW.RothC and takes as inputs the soil thickness, clay content, weather effects and the evaporation corefficient. 
+
+However this only allows a logical input for the coverage of the soil (covered/not covered). This has an affect on the Maximum soil decomposition rate (Max.TSMD) which is used as a limiting factor in the calculation of the Accumulated soil decomposition rate. 
+
+The moisture factor, b is calculated as follows: 
+b = 
+if 
+Acc.TSMD > (0.444*Max.TSMD) : b = 1
+else
+Acc.TSMD <= (0.444*Max.TSMD) : b = 0.2 + 0.8((Max.TSMD - Acc.TSMD)/(Max.TSMD - (0.444*Max.TSMD)))
+
+Where the Max.TSMD = -(20+1.3pClay - 0.01pClay^2)(S.thickness/23)*1/B
+
+Where B = 1 if the soil is covered, and 1.8 if not. 
+
+What this means is that if the soil is not covered, 0.55 of the maximum moisture of the soil can be retained. 
+For thicker soils this seems to have a much lesser effect, however for finer soils, this is evidently more relevant. 
+
+The difference in the modified function, as opposed to the original, is that I calculate the MaxTSMD as a monthly value rather than a single value (for covered or not). The Accumulated TSMD is calculated monthly and compared to this monthly value. This is an assumption that seems reasonable to me, but could be checked for validity. 
