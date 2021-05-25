@@ -32,7 +32,7 @@ source(file.path(working_dir, "modified_functions.R"))
 input_file_name <- "test_bare_profile.csv"
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccdddddddllllllllllll")
+                             col_types = "cccddddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
@@ -60,11 +60,15 @@ for (i in 1:no_tests){
   SOC <- input_parameters$SOC[i]
   clay <- input_parameters$clay[i]
   c_inputs <- input_parameters$c_inputs[i]
+  fym <- input_parameters$FYM[i]
   pE <- input_parameters$pE[i]
   # bare <- input_parameters$bare[i]
   time_horizon <- input_parameters$time_horizon[i]
   temp_adjustment <- input_parameters$temp_adjustment[i]
   bare_profile <- get_bare_profile(input_parameters[i])
+  
+  # add the fym to the c_inputs
+  c_inputs <- c_inputs + fym
   
   # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
