@@ -69,6 +69,12 @@ for (i in 1:no_tests){
   # add the fym to the c_inputs
   c_inputs <- c_inputs + fym
   
+  dr_ratio_crops = 1.44
+  dr_ratio_fym = 1
+  
+  # normalise the ratio by mass of carbon inputs from crops and fym
+  dr_ratio = (dr_ratio_crops*c_inputs + dr_ratio_fym*fym) / (c_inputs + fym)
+  
   # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
   FallIOM <- 0.049 * SOC^(1.139) # IOM using Falloon method
@@ -86,6 +92,7 @@ for (i in 1:no_tests){
     soil_thick = soil_thick,
     clay = clay,
     c_inputs = c_inputs,
+    dr_ratio = dr_ratio,
     pE = pE,
     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
     description = "Base Case",
@@ -112,6 +119,7 @@ for (i in 1:no_tests){
     soil_thick = soil_thick,
     clay = clay,
     c_inputs = c_inputs,
+    dr_ratio = dr_ratio,
     pE = pE,
     PS = starting_soil_content,
     description = desc,
