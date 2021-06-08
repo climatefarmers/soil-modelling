@@ -67,4 +67,5 @@ evap <- evap_data %>%
 
 if(!dir.exists("data/weather_average")){dir.create("data/weather_average")}
 weather_average <- rbind("evap" = evap,"precip" = precip,"temp" = meantemp)
-write.csv(weather_average, paste0("data/weather_average/", location,"_average.csv"))
+
+write.csv(weather_average, paste0("data/weather_average/", tolower(location),"_average.csv"))
