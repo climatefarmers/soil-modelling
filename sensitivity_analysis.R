@@ -1,26 +1,25 @@
-# parametrisation of model
+# Running the model
 
 # This file allows you to test multiple soil configurations based on the inputs you give  
-# in the parameter file defined by input_file_name. The results and plots will be created
-# in folders. The loop recreates the starting soil carbon content if parameters are changed
-# between the runs. 
+# in the parameter file defined by variable: input_file_name. The results and plots will be created
+# in folders. The loop recreates the starting soil carbon content for each run. 
 
 # To run: 
 # 1. Ensure your working directory is the same as the repository. 
-# 2. change the input file name to reflect the parameter file
+# 2. Create a parameter file for your project. The name of this file will be taken as the project name
 # This can include as many tests as you would like. Just ensure a unique description is 
 # used for each file. 
-# 3. Run the code and review the results. 
+# 3. Run the code and review the results. Results are saved within the results and plots folders 
 
 
 # TODO: 
-# - Ensure that the crop and location inputs vary based on input data
+# - Ensure that the crop inputs vary based on input data
 # - Validate results! 
+# - Sensitivity analysis of each variable
 
 
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
-
 
 working_dir <- getwd()
 
@@ -60,12 +59,9 @@ for (i in 1:no_tests){
   clay <- input_parameters$clay[i]
   c_inputs <- input_parameters$c_inputs[i]
   pE <- input_parameters$pE[i]
-  # bare <- input_parameters$bare[i]
   time_horizon <- input_parameters$time_horizon[i]
   temp_adjustment <- input_parameters$temp_adjustment[i]
   bare_profile <- get_bare_profile(input_parameters[i])
-  
-  # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
   FallIOM <- 0.049 * SOC^(1.139) # IOM using Falloon method
   
@@ -75,7 +71,7 @@ for (i in 1:no_tests){
   
   C0_df <- calc_soil_carbon(
     time_horizon = 500,
-    bare = FALSE, 
+    bare = bare_profile, 
     temp = temp,
     precip = precip,
     evap = evap,
