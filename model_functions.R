@@ -1,7 +1,5 @@
 # SoilR functions
 
-
-
 calc_soil_carbon <- function(
   time_horizon = 10,
   bare = TRUE,   # This can be a logical, or a string of 12 logicals
@@ -15,7 +13,8 @@ calc_soil_carbon <- function(
   fym_inputs = 0,
   pE = 1.0,
   PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0),
-  description = "Base Case"
+  description = "Base Case",
+  project_name = "test"
 ){
   
   # Monthly data frame
@@ -68,9 +67,13 @@ calc_soil_carbon <- function(
   names(c_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
   # Generates and saves output plot
-  plot_c_stocks(years, c_t, description)
+  plot_c_stocks(years, 
+                c_t, 
+                description,
+                project_name)
   
-  write.csv(fW,paste0(description,"_fW.csv"))
+  if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
+  write.csv(fW, file.path("results", project_name, paste0(description,"_fW.csv")))
   
   return(c_t)
   
@@ -90,10 +93,9 @@ get_total_C <- function(C_df){
 
 plot_c_stocks <- function(years, 
                           df,
-                          plot_title){
+                          plot_title = "",
+                          project_name = "test"){
   
-  # df <- as.data.frame(df)
-  # names(df) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   df$year <- years
   df <- df %>% 
     pivot_longer(cols = c("DPM", "RPM", "BIO", "HUM", "IOM"),
@@ -106,8 +108,8 @@ plot_c_stocks <- function(years,
     theme(legend.position = "right")
   
   
-  if(!dir.exists("plots")){dir.create("plots")}
-  ggsave(plot, filename = paste0("plots/",plot_title, ".png"), height = 4.62, width = 5.98)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
   
 }
 
