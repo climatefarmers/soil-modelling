@@ -14,7 +14,6 @@
 
 
 # TODO: 
-# - Average the starting_soil_content
 # - Ensure that the crop and location inputs vary based on input data
 # - Validate results! 
 
@@ -29,7 +28,8 @@ source(file.path(working_dir, "model_functions.R"))
 source(file.path(working_dir, "modified_functions.R"))
 
 
-input_file_name <- "test_bare_profile.csv"
+input_file_name <- "test_dobimar.csv"
+project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
                              col_types = "cccddddddddllllllllllll")
@@ -41,16 +41,15 @@ if(length(unique(input_parameters$desc)) != no_tests){stop("Descriptions are not
 C0_df <- NA
 all_results <- NA
 
-# Temperature (Wetterstation Lindenberg)
-# 40 Year Mean Temperature/Month
-temp0 <- c(2.6, 4.2, 8.5, 14.5, 19.5, 22.3, 24.5, 24.3, 
-           19.4, 13.7, 7.2, 3.5)
+location <- unique(input_parameters$location)
+if(length(location) > 1)(stop("Currently only one location is supported per run. "))
 
-# Precipitation - monthly mean values from 1981 to 2020
-precip <- c(42, 35, 41, 34, 52, 62, 70, 60, 43, 39, 42, 47)
-
-# Evaporation - Mean values from 1991 - 2020
-evap <- c( 10, 15, 33, 53, 52, 61, 69, 51, 32, 19, 9, 7)
+weather_data <- read.csv(paste0("data/weather_average/",tolower(location),"_average.csv"), 
+                         row.names = c("evap", "precip", "temp")) %>% 
+  select(-X) 
+evap <- unlist(weather_data["evap",])
+precip <- unlist(weather_data["precip",])
+temp0 <- unlist(weather_data["temp",])
 
 for (i in 1:no_tests){
   desc <- input_parameters$desc[i]
@@ -76,70 +75,33 @@ for (i in 1:no_tests){
   
   temp <- temp0 + temp_adjustment 
   
-  # if(i == 1){
-  #   # Sensitivity check
-  #   C0_df <- calc_soil_carbon(
-  #     time_horizon = 500,
-  #     bare = bare_profile, 
-  #     temp = temp,
-  #     precip = precip,
-  #     evap = evap,
-  #     soil_thick = soil_thick,
-  #     clay = clay,
-  #     c_inputs = c_inputs,
-  #     pE = pE,
-  #     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
-  #     description = "Base Case"
-  #   )
-  #   C0 <- get_total_C(C0_df)
-  #   
-  #   starting_soil_content <- as.numeric(tail(C0_df, 1))
-  #   
-  #   
-  #   soil_thick0 <- soil_thick
-  #   clay0 <- clay
-  #   c_inputs0 <- c_inputs
-  #   pE0 <- pE
-  #   temp_adjustment0 <- temp_adjustment
-  #   SOC0 <- SOC
-  #   
-  # } else if (
-  #   # if the soil_thickness, clay content, c_inputs or pE changes, need to rerun the starting_soil_content_calculation
-  #   soil_thick != soil_thick0 | clay != clay0 | c_inputs != c_inputs0 | pE != pE0 | temp_adjustment != temp_adjustment0 | SOC != SOC0
-  # ){
-    # print("New starting soil content calculated")
-    # print(c(
-    #   soil_thick, soil_thick0, clay, clay0, c_inputs, c_inputs0, pE, pE0, temp_adjustment, temp_adjustment0, SOC, SOC0
-    # ))
-    
-    FallIOM <- 0.049 * SOC^(1.139)
-    
-    C0_df <- calc_soil_carbon(
-      time_horizon = 500,
-      bare = FALSE, 
-      temp = temp,
-      precip = precip,
-      evap = evap,
-      soil_thick = soil_thick,
-      clay = clay,
-      c_inputs = c_inputs,
-      pE = pE,
-      PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
-      description = "Base Case"
-    )
-    
-    C0 <- get_total_C(C0_df)
-    
-    starting_soil_content <- as.numeric(tail(C0_df, 1))
-    
-    soil_thick0 <- soil_thick
-    clay0 <- clay
-    c_inputs0 <- c_inputs
-    pE0 <- pE
-    temp_adjustment0 <- temp_adjustment
-    SOC0 <- SOC
-    
-  # }
+  FallIOM <- 0.049 * SOC^(1.139)
+  
+  C0_df <- calc_soil_carbon(
+    time_horizon = 500,
+    bare = FALSE, 
+    temp = temp,
+    precip = precip,
+    evap = evap,
+    soil_thick = soil_thick,
+    clay = clay,
+    c_inputs = c_inputs,
+    pE = pE,
+    PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
+    description = "Base Case",
+    project_name = project_name
+  )
+  
+  C0 <- get_total_C(C0_df)
+  
+  starting_soil_content <- as.numeric(tail(C0_df, 1))
+  
+  soil_thick0 <- soil_thick
+  clay0 <- clay
+  c_inputs0 <- c_inputs
+  pE0 <- pE
+  temp_adjustment0 <- temp_adjustment
+  SOC0 <- SOC
   
   C_df <- calc_soil_carbon(
     time_horizon = time_horizon,
@@ -152,7 +114,8 @@ for (i in 1:no_tests){
     c_inputs = c_inputs,
     pE = pE,
     PS = starting_soil_content,
-    description = desc
+    description = desc,
+    project_name = project_name
   )
   C <- get_total_C(C_df)
   
@@ -167,8 +130,8 @@ for (i in 1:no_tests){
 }
 
 # Create Results Path
-results_path <- file.path(working_dir, "results")
-results_file_name <- paste0(gsub(".csv", "",input_file_name), "_results.csv")
+results_path <- file.path(working_dir, "results", project_name)
+results_file_name <- paste0(project_name, "_results.csv")
 if(!dir.exists(results_path)){dir.create(results_path)}
 write_csv(all_results, file.path(results_path, results_file_name))
 

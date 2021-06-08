@@ -2,9 +2,12 @@
 # over a period of 30 years 
 library(tidyr)
 library(dplyr)
-# setwd()
-weather_data <- read.delim('data/climate_schwerin_historical.txt', sep=';')
-evap_data <- read.delim('data/schwerin_evap_historical.txt', sep=';')
+
+
+location <- "schwerin"
+
+weather_data <- read.delim(paste0("data/weather_raw/climate_", location,"_historical.txt"), sep=';')
+evap_data <- read.delim(paste0("data/weather_raw/",location,"_evap_historical.txt"), sep=';')
 
 # temp starts 01.08.1887 - 31.12.2020
 # Model will be run with a 30 year average from 1990 to 2020 (Equilibrium Run)
@@ -59,4 +62,10 @@ evap <- evap_data %>%
   spread(value = "evap", key = month)
 
 
+#############################################################################
+# Save weather data
 
+if(!dir.exists("data/weather_average")){dir.create("data/weather_average")}
+weather_average <- rbind("evap" = evap,"precip" = precip,"temp" = meantemp)
+
+write.csv(weather_average, paste0("data/weather_average/", tolower(location),"_average.csv"))
