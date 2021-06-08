@@ -28,7 +28,8 @@ source(file.path(working_dir, "model_functions.R"))
 source(file.path(working_dir, "modified_functions.R"))
 
 
-input_file_name <- "test_bare_profile.csv"
+input_file_name <- "test_dobimar.csv"
+project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
                              col_types = "cccddddddddllllllllllll")
@@ -83,7 +84,8 @@ for (i in 1:no_tests){
     c_inputs = c_inputs,
     pE = pE,
     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
-    description = "Base Case"
+    description = "Base Case",
+    project_name = project_name
   )
   
   C0 <- get_total_C(C0_df)
@@ -108,7 +110,8 @@ for (i in 1:no_tests){
     c_inputs = c_inputs,
     pE = pE,
     PS = starting_soil_content,
-    description = desc
+    description = desc,
+    project_name = project_name
   )
   C <- get_total_C(C_df)
   
@@ -123,8 +126,8 @@ for (i in 1:no_tests){
 }
 
 # Create Results Path
-results_path <- file.path(working_dir, "results")
-results_file_name <- paste0(gsub(".csv", "",input_file_name), "_results.csv")
+results_path <- file.path(working_dir, "results", project_name)
+results_file_name <- paste0(project_name, "_results.csv")
 if(!dir.exists(results_path)){dir.create(results_path)}
 write_csv(all_results, file.path(results_path, results_file_name))
 
