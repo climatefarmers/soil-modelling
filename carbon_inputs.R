@@ -1,5 +1,10 @@
 # carbon_inputs
 
+# This script is an initial attempt to calculate estimated carbon inputs for different
+# crop types based on some specific properties.
+# This is not yet being used- nor is it clear that we need it, but it does convert yield
+# to carbon input which seems to me to be relevant. 
+
 # Grain corn
 hi <- 0.5 # Harvest Index = proportion of the total carbon harvested
 rs <- 0.18 # root shoot ratio
@@ -25,8 +30,6 @@ moisture_content <- 0.2
 dry_yield <- wet_yield * (1-moisture_content) # kg DM /ha (dry matter)
 # or
 # dry_yield <- 6000 # kg DM /ha
-
-
 
 yield_bm <- (dry_yield*0.45)
 above_ground_bm <- yield_bm *(1-hi)/hi
