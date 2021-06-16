@@ -1,7 +1,7 @@
-desc,location,crop,temp_adjustment,soil_thick,SOC,clay,c_inputs,pE,time_horizon,bare_profile_1,bare_profile_2,bare_profile_3,bare_profile_4,bare_profile_5,bare_profile_6,bare_profile_7,bare_profile_8,bare_profile_9,bare_profile_10,bare_profile_11,bare_profile_12
-Bare,Lindenberg,Sorghum,0,25,39,18,7.56,1,10,1,1,1,1,1,1,1,1,1,1,1,1
-Covered,Lindenberg,Sorghum,0,25,39,18,7.56,1,10,0,0,0,0,0,0,0,0,0,0,0,0
-Changing coverage,Lindenberg,Sorghum,0,25,39,18,7.56,1,10,1,1,1,0,0,0,0,0,0,1,1,1
-"Bare, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,10,1,1,1,1,1,1,1,1,1,1,1,1
-"Covered,  Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,10,0,0,0,0,0,0,0,0,0,0,0,0
-"Changing coverage, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,10,1,1,1,0,0,0,0,0,0,1,1,1
+desc,location,crop,temp_adjustment,soil_thick,SOC,clay,c_inputs,FYM,pE,time_horizon,bare_profile_1,bare_profile_2,bare_profile_3,bare_profile_4,bare_profile_5,bare_profile_6,bare_profile_7,bare_profile_8,bare_profile_9,bare_profile_10,bare_profile_11,bare_profile_12
+Bare,Lindenberg,Sorghum,0,25,39,18,7.56,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
+Covered,Lindenberg,Sorghum,0,25,39,18,7.56,1,1,10,0,0,0,0,0,0,0,0,0,0,0,0
+Changing coverage,Lindenberg,Sorghum,0,25,39,18,7.56,1,1,10,1,1,1,0,0,0,0,0,0,1,1,1
+"Bare, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
+"Covered,  Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,1,10,0,0,0,0,0,0,0,0,0,0,0,0
+"Changing coverage, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,1,10,1,1,1,0,0,0,0,0,0,1,1,1
