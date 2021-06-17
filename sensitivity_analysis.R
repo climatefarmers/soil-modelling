@@ -31,7 +31,7 @@ input_file_name <- "test_dobimar.csv"
 project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccddddddddllllllllllll")
+                             col_types = "cccdddddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
@@ -57,7 +57,8 @@ for (i in 1:no_tests){
   soil_thick <- input_parameters$soil_thick[i]
   SOC <- input_parameters$SOC[i]
   clay <- input_parameters$clay[i]
-  c_inputs <- input_parameters$c_inputs[i]
+  c_inputs_base <- input_parameters$c_in_base[i]
+  c_inputs_reg <- input_parameters$c_in_reg[i]
   fym <- input_parameters$FYM[i]
   pE <- input_parameters$pE[i]
   time_horizon <- input_parameters$time_horizon[i]
@@ -89,7 +90,7 @@ for (i in 1:no_tests){
     evap = evap,
     soil_thick = soil_thick,
     clay = clay,
-    c_inputs = c_inputs,
+    c_inputs = c_inputs_base,
     dr_ratio = dr_ratio,
     pE = pE,
     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
@@ -101,13 +102,6 @@ for (i in 1:no_tests){
   
   starting_soil_content <- as.numeric(tail(C0_df, 1))
   
-  soil_thick0 <- soil_thick
-  clay0 <- clay
-  c_inputs0 <- c_inputs
-  pE0 <- pE
-  temp_adjustment0 <- temp_adjustment
-  SOC0 <- SOC
-  
   C_df <- calc_soil_carbon(
     time_horizon = time_horizon,
     bare = bare_profile, 
@@ -116,7 +110,7 @@ for (i in 1:no_tests){
     evap = evap,
     soil_thick = soil_thick,
     clay = clay,
-    c_inputs = c_inputs,
+    c_inputs = c_inputs_reg,
     dr_ratio = dr_ratio,
     pE = pE,
     PS = starting_soil_content,

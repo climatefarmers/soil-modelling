@@ -203,6 +203,32 @@ plot_monthly_histogram <- function(time_horizon,
   
 } 
 
+plot_c_diff <- function(years, 
+                        df,
+                        plot_title = "", 
+                        project_name = "test"){
+  
+  df <- C_df %>% 
+    rowwise() %>% 
+    summarise(C_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    ungroup() %>% 
+    mutate(C_tot_1 = lag(C_tot, 1),
+           C_tot_diff = C_tot-C_tot_1, 
+           year = years)
+    
+  
+  
+  plot <- ggplot(data = df, aes(x = year, y = C_tot_diff))+
+    geom_line()+
+    labs(title = plot_title, x = "Time (years)", y = "C difference (Mg/ha)")+
+    theme_classic()
+  
+  plot_title <- paste("Difference to previous month - ", plot_title)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
+  
+}
+
 get_bare_profile <- function(input_parameters_0){
   
   # input_parameters should be a single line of the input_parameter file
