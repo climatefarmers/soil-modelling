@@ -123,14 +123,49 @@ for (i in 1:no_tests){
     description = desc,
     project_name = project_name
   )
-  C <- get_total_C(C_df)
   
-  print(tibble(desc, C))
+  
+  years <- get_monthly_dataframe(time_horizon)
+  
+  # Generates and saves output plot
+  plot_c_stocks(years, 
+                C_df, 
+                desc,
+                project_name)
+  
+  plot_total_c(years, C_df, desc, project_name)
+  
+  
+  plot_monthly_c(month = 3, 
+                 time_horizon, 
+                 C_df, 
+                 desc, 
+                 project_name)
+  
+  plot_monthly_c(month = 6, 
+                 time_horizon, 
+                 C_df, 
+                 desc, 
+                 project_name)
+  
+  plot_monthly_c(month = 9, 
+                 time_horizon, 
+                 C_df, 
+                 desc, 
+                 project_name)
+  
+  plot_monthly_histogram(time_horizon, C_df, desc, project_name)
+  
+  C_final <- get_total_C(C_df)
+  
+  C_init <- get_initial_C(C_df)
+  
+  print(tibble(desc, C_final, C_final - C_init))
   
   if (i == 1){
-    all_results <- data.frame(desc, C)
+    all_results <- data.frame(desc, C_final, C_final - C_init)
   }else{
-    all_results <- rbind(all_results, c(desc, C))
+    all_results <- rbind(all_results, c(desc, C_final, C_final - C_init))
   }
   
 }
