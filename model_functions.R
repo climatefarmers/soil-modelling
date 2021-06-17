@@ -193,6 +193,7 @@ plot_monthly_histogram <- function(time_horizon,
   
   plot <- ggplot(data = df, aes(x = factor(months), y = C_tot))+ 
     geom_boxplot()+ 
+    labs(title = plot_title, x = "Month", y = paste("Distribution within a month (Mg/ha)"))+
     theme_classic()
   
   
