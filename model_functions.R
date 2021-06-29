@@ -1,5 +1,15 @@
 # SoilR functions
 
+convert_to_tonnes <- function(value, 
+                              conversion_factor = 3.67
+){
+  
+  tonnes = value * conversion_factor
+  
+  return(tonnes)
+  
+}
+
 get_monthly_dataframe <- function(time_horizon = 10){
   
   years <- seq(1/12, time_horizon+1/12, by = 1/12)
@@ -84,9 +94,9 @@ calc_soil_carbon <- function(
 }
 
 
-get_total_C <- function(C_df){
+get_total_C <- function(c_df){
   
-  final_row <- as.numeric(tail(C_df, 1))
+  final_row <- as.numeric(tail(c_df, 1))
   
   tot_value <- sum(final_row)
   
@@ -94,9 +104,9 @@ get_total_C <- function(C_df){
   
 }
 
-get_initial_C <- function(C_df){
+get_initial_C <- function(c_df){
   
-  initial_row <- as.numeric(head(C_df,1))
+  initial_row <- as.numeric(head(c_df,1))
   
   init_value <- sum(initial_row)
   
@@ -119,7 +129,7 @@ plot_c_stocks <- function(years,
   plot_title <- paste("Carbon Distribution - ", plot_title)
   plot <- ggplot(data = df, aes(x = year, y = value, group = soil_comp, colour = soil_comp))+
     geom_line()+
-    labs(title = plot_title, x = "Time (years)", y = "C Stocks (Mg/ha)", color = "Soil\nComposition")+
+    labs(title = plot_title, x = "Time (years)", y = "C Stocks (t/ha)", color = "Soil\nComposition")+
     theme_classic()+
     theme(legend.position = "right")
   
@@ -134,12 +144,12 @@ plot_total_c <- function(years,
                          plot_title = "",
                          project_name = "test"){
   
-  df <- df %>% rowwise() %>% summarise(C_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop")
+  df <- df %>% rowwise() %>% summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop")
   df$year <- years
   
-  plot <- ggplot(data = df, aes(x = year, y = C_tot))+
+  plot <- ggplot(data = df, aes(x = year, y = c_tot))+
     geom_line()+
-    labs(title = plot_title, x = "Time (years)", y = "C Stocks (Mg/ha)")+
+    labs(title = plot_title, x = "Time (years)", y = "C Stocks (t/ha)")+
     theme_classic()
   
   plot_title <- paste("Total Carbon - ", plot_title)
@@ -162,12 +172,12 @@ plot_monthly_c <- function(month = 1,
     mutate(months = c(rep(1:12, time_horizon), 1)) %>% 
     filter(months == month) %>% 
     rowwise() %>% 
-    summarise(C_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
     mutate(year = 1:th)
   
-  plot <- ggplot(data = df, aes(x = year, y = C_tot))+
+  plot <- ggplot(data = df, aes(x = year, y = c_tot))+
     geom_line()+
-    labs(title = plot_title, x = "Time (years)", y = paste("C Stocks in Month", month,"(Mg/ha)"))+
+    labs(title = plot_title, x = "Time (years)", y = paste("C Stocks in Month", month,"(t/ha)"))+
     theme_classic()
   
   plot_title <- paste("Carbon month", month, "-", plot_title)
@@ -187,13 +197,13 @@ plot_monthly_histogram <- function(time_horizon,
   
   df <- df %>% 
     rowwise() %>% 
-    summarise(C_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
     mutate(months = c(rep(1:12, time_horizon), 1))
   
   
-  plot <- ggplot(data = df, aes(x = factor(months), y = C_tot))+ 
+  plot <- ggplot(data = df, aes(x = factor(months), y = c_tot))+ 
     geom_boxplot()+ 
-    labs(title = plot_title, x = "Month", y = paste("Distribution within a month (Mg/ha)"))+
+    labs(title = plot_title, x = "Month", y = paste("Distribution within a month (t/ha)"))+
     theme_classic()
   
   
@@ -208,19 +218,19 @@ plot_c_diff <- function(years,
                         plot_title = "", 
                         project_name = "test"){
   
-  df <- C_df %>% 
+  df <- df %>% 
     rowwise() %>% 
-    summarise(C_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
     ungroup() %>% 
-    mutate(C_tot_1 = lag(C_tot, 1),
-           C_tot_diff = C_tot-C_tot_1, 
+    mutate(c_tot_1 = lag(c_tot, 1),
+           c_tot_diff = c_tot-c_tot_1, 
            year = years)
-    
   
   
-  plot <- ggplot(data = df, aes(x = year, y = C_tot_diff))+
+  
+  plot <- ggplot(data = df, aes(x = year, y = c_tot_diff))+
     geom_line()+
-    labs(title = plot_title, x = "Time (years)", y = "C difference (Mg/ha)")+
+    labs(title = plot_title, x = "Time (years)", y = "C difference (t/ha)")+
     theme_classic()
   
   plot_title <- paste("Difference to previous month - ", plot_title)
