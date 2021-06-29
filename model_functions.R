@@ -1,5 +1,21 @@
 # SoilR functions
 
+convert_to_tonnes <- function(value, 
+                              conversion_factor = 3.67
+){
+  
+  tonnes = value * conversion_factor
+  
+  return(tonnes)
+  
+}
+
+get_monthly_dataframe <- function(time_horizon = 10){
+  
+  years <- seq(1/12, time_horizon+1/12, by = 1/12)
+  
+}
+
 calc_soil_carbon <- function(
   time_horizon = 10,
   bare = TRUE,   # This can be a logical, or a string of 12 logicals
@@ -18,7 +34,7 @@ calc_soil_carbon <- function(
 ){
   
   # Monthly data frame
-  years <- seq(1/12, time_horizon, by = 1/12)
+  years <- get_monthly_dataframe(time_horizon)
   
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
@@ -66,11 +82,9 @@ calc_soil_carbon <- function(
   c_t <- as_tibble(c_t)
   names(c_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
-  # Generates and saves output plot
-  plot_c_stocks(years, 
-                c_t, 
-                description,
-                project_name)
+  r_t <- getReleaseFlux(Model)
+  r_t <- as_tibble(r_t)
+  names(r_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
   if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
   write.csv(fW, file.path("results", project_name, paste0(description,"_fW.csv")))
@@ -80,13 +94,38 @@ calc_soil_carbon <- function(
 }
 
 
-get_total_C <- function(C_df){
+normalise_c_inputs <- function(
+  c_in = 0, 
+  fym_in = 0,
+  dr_ratio_crops = 1.44,
+  dr_ratio_fym = 1){
   
-  final_row <- as.numeric(tail(C_df, 1))
+  if(c_in + fym_in != 0){
+    dr_ratio = (dr_ratio_crops*c_in + dr_ratio_fym*fym_in) / (c_in + fym_in)
+  }else{
+    dr_ratio = 1
+  }  
+  return(dr_ratio)
+  
+}
+
+get_total_C <- function(c_df){
+  
+  final_row <- as.numeric(tail(c_df, 1))
   
   tot_value <- sum(final_row)
   
   return(tot_value)
+  
+}
+
+get_initial_C <- function(c_df){
+  
+  initial_row <- as.numeric(head(c_df,1))
+  
+  init_value <- sum(initial_row)
+  
+  return(init_value)
   
 }
 
@@ -101,9 +140,11 @@ plot_c_stocks <- function(years,
     pivot_longer(cols = c("DPM", "RPM", "BIO", "HUM", "IOM"),
                  names_to = "soil_comp")
   
+  
+  plot_title <- paste("Carbon Distribution - ", plot_title)
   plot <- ggplot(data = df, aes(x = year, y = value, group = soil_comp, colour = soil_comp))+
     geom_line()+
-    labs(title = plot_title, x = "Time (years)", y = "C Stocks (Mg/ha)", color = "Soil\nComposition")+
+    labs(title = plot_title, x = "Time (years)", y = "C Stocks (t/ha)", color = "Soil\nComposition")+
     theme_classic()+
     theme(legend.position = "right")
   
@@ -113,6 +154,105 @@ plot_c_stocks <- function(years,
   
 }
 
+plot_total_c <- function(years, 
+                         df,
+                         plot_title = "",
+                         project_name = "test"){
+  
+  df <- df %>% rowwise() %>% summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop")
+  df$year <- years
+  
+  plot <- ggplot(data = df, aes(x = year, y = c_tot))+
+    geom_line()+
+    labs(title = plot_title, x = "Time (years)", y = "C Stocks (t/ha)")+
+    theme_classic()
+  
+  plot_title <- paste("Total Carbon - ", plot_title)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
+  
+  
+}
+
+
+plot_monthly_c <- function(month = 1, 
+                           time_horizon, 
+                           df, 
+                           plot_title = "", 
+                           project_name = "test"){
+  
+  if(month == 1){th = time_horizon +1}else{th = time_horizon}
+  
+  df <- df %>% 
+    mutate(months = c(rep(1:12, time_horizon), 1)) %>% 
+    filter(months == month) %>% 
+    rowwise() %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    mutate(year = 1:th)
+  
+  plot <- ggplot(data = df, aes(x = year, y = c_tot))+
+    geom_line()+
+    labs(title = plot_title, x = "Time (years)", y = paste("C Stocks in Month", month,"(t/ha)"))+
+    theme_classic()
+  
+  plot_title <- paste("Carbon month", month, "-", plot_title)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
+  
+  
+  
+  
+}
+
+
+plot_monthly_histogram <- function(time_horizon, 
+                                   df,
+                                   plot_title = "", 
+                                   project_name = "test"){
+  
+  df <- df %>% 
+    rowwise() %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    mutate(months = c(rep(1:12, time_horizon), 1))
+  
+  
+  plot <- ggplot(data = df, aes(x = factor(months), y = c_tot))+ 
+    geom_boxplot()+ 
+    labs(title = plot_title, x = "Month", y = paste("Distribution within a month (t/ha)"))+
+    theme_classic()
+  
+  
+  plot_title <- paste("Monthly Distribution -", plot_title)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
+  
+} 
+
+plot_c_diff <- function(years, 
+                        df,
+                        plot_title = "", 
+                        project_name = "test"){
+  
+  df <- df %>% 
+    rowwise() %>% 
+    summarise(c_tot = sum(DPM, RPM, BIO, HUM, IOM), .groups = "drop") %>% 
+    ungroup() %>% 
+    mutate(c_tot_1 = lag(c_tot, 1),
+           c_tot_diff = c_tot-c_tot_1, 
+           year = years)
+  
+  
+  
+  plot <- ggplot(data = df, aes(x = year, y = c_tot_diff))+
+    geom_line()+
+    labs(title = plot_title, x = "Time (years)", y = "C difference (t/ha)")+
+    theme_classic()
+  
+  plot_title <- paste("Difference to previous month - ", plot_title)
+  if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+  ggsave(plot, filename = file.path("plots", project_name, paste0(plot_title, ".png")), height = 4.62, width = 5.98)
+  
+}
 
 get_bare_profile <- function(input_parameters_0){
   

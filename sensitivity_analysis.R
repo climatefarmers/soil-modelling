@@ -31,7 +31,7 @@ input_file_name <- "test_dobimar.csv"
 project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccddddddddllllllllllll")
+                             col_types = "cccddddddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
@@ -54,32 +54,36 @@ for (i in 1:no_tests){
   desc <- input_parameters$desc[i]
   site_location <- input_parameters$location[i]
   crop <- input_parameters$crop[i]
+  hectares <- input_parameters$hectares[i]
   soil_thick <- input_parameters$soil_thick[i]
   SOC <- input_parameters$SOC[i]
   clay <- input_parameters$clay[i]
-  c_inputs <- input_parameters$c_inputs[i]
-  fym <- input_parameters$FYM[i]
-  pE <- input_parameters$pE[i]
+  c_inputs_base <- input_parameters$c_in_base[i]
+  c_inputs_reg <- input_parameters$c_in_reg[i]
+  fym_base <- input_parameters$FYM_base[i]
+  fym_reg <- input_parameters$FYM_reg[i]
+  pE <- input_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
   time_horizon <- input_parameters$time_horizon[i]
   temp_adjustment <- input_parameters$temp_adjustment[i]
   bare_profile <- get_bare_profile(input_parameters[i])
   
   # add the fym to the c_inputs
-  c_inputs <- c_inputs + fym
-  
-  dr_ratio_crops = 1.44
-  dr_ratio_fym = 1
+  c_inputs_base <- c_inputs_base + fym_base
+  c_inputs_reg <- c_inputs_reg + fym_reg
   
   # normalise the ratio by mass of carbon inputs from crops and fym
-  dr_ratio = (dr_ratio_crops*c_inputs + dr_ratio_fym*fym) / (c_inputs + fym)
+  dr_ratio_base <- normalise_c_inputs(c_in = c_inputs_base, 
+                                     fym_in = fym_base)
+
+  dr_ratio_reg <- normalise_c_inputs(c_in = c_inputs_reg, 
+                                     fym_in = fym_reg)
   
+    
   # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
   FallIOM <- 0.049 * SOC^(1.139) # IOM using Falloon method
   
   temp <- temp0 + temp_adjustment 
-  
-  FallIOM <- 0.049 * SOC^(1.139)
   
   C0_df <- calc_soil_carbon(
     time_horizon = 500,
@@ -89,8 +93,8 @@ for (i in 1:no_tests){
     evap = evap,
     soil_thick = soil_thick,
     clay = clay,
-    c_inputs = c_inputs,
-    dr_ratio = dr_ratio,
+    c_inputs = c_inputs_base,
+    dr_ratio = dr_ratio_base,
     pE = pE,
     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
     description = "Base Case",
@@ -101,14 +105,7 @@ for (i in 1:no_tests){
   
   starting_soil_content <- as.numeric(tail(C0_df, 1))
   
-  soil_thick0 <- soil_thick
-  clay0 <- clay
-  c_inputs0 <- c_inputs
-  pE0 <- pE
-  temp_adjustment0 <- temp_adjustment
-  SOC0 <- SOC
-  
-  C_df <- calc_soil_carbon(
+  c_df <- calc_soil_carbon(
     time_horizon = time_horizon,
     bare = bare_profile, 
     temp = temp,
@@ -116,23 +113,42 @@ for (i in 1:no_tests){
     evap = evap,
     soil_thick = soil_thick,
     clay = clay,
-    c_inputs = c_inputs,
-    dr_ratio = dr_ratio,
+    c_inputs = c_inputs_reg,
+    dr_ratio = dr_ratio_reg,
     pE = pE,
     PS = starting_soil_content,
     description = desc,
     project_name = project_name
   )
-  C <- get_total_C(C_df)
   
-  print(tibble(desc, C))
+  years <- get_monthly_dataframe(time_horizon)
+  
+  # Generates and saves output plot
+  plot_c_stocks(years, c_df, desc, project_name)
+  
+  plot_total_c(years, c_df, desc, project_name)
+  
+  plot_monthly_c(month = 3, time_horizon, c_df, desc, project_name)
+  
+  plot_monthly_histogram(time_horizon, c_df, desc, project_name)
+  
+  
+  # Calculate final values 
+  c_final <- convert_to_tonnes(get_total_C(c_df))
+  
+  c_init <- convert_to_tonnes(get_initial_C(c_df))
+  
+  stored_carbon <- c_final - c_init
+  
+  annual_stored_carbon <- stored_carbon/time_horizon
+  
+  print(tibble(desc, c_final, stored_carbon, annual_stored_carbon))
   
   if (i == 1){
-    all_results <- data.frame(desc, C)
+    all_results <- data.frame(desc, c_init, c_final, stored_carbon, annual_stored_carbon)
   }else{
-    all_results <- rbind(all_results, c(desc, C))
+    all_results <- rbind(all_results, c(desc, c_init, c_final, stored_carbon, annual_stored_carbon))
   }
-  
 }
 
 # Create Results Path
