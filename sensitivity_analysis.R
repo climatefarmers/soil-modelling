@@ -60,21 +60,25 @@ for (i in 1:no_tests){
   clay <- input_parameters$clay[i]
   c_inputs_base <- input_parameters$c_in_base[i]
   c_inputs_reg <- input_parameters$c_in_reg[i]
-  fym <- input_parameters$FYM[i]
-  pE <- input_parameters$pE[i]
+  fym_base <- input_parameters$FYM_base[i]
+  fym_reg <- input_parameters$FYM_reg[i]
+  pE <- input_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
   time_horizon <- input_parameters$time_horizon[i]
   temp_adjustment <- input_parameters$temp_adjustment[i]
   bare_profile <- get_bare_profile(input_parameters[i])
   
   # add the fym to the c_inputs
-  c_inputs <- c_inputs + fym
-  
-  dr_ratio_crops = 1.44
-  dr_ratio_fym = 1
+  c_inputs_base <- c_inputs_base + fym_base
+  c_inputs_reg <- c_inputs_reg + fym_reg
   
   # normalise the ratio by mass of carbon inputs from crops and fym
-  dr_ratio = (dr_ratio_crops*c_inputs + dr_ratio_fym*fym) / (c_inputs + fym)
+  dr_ratio_base <- normalise_c_inputs(c_in = c_inputs_base, 
+                                     fym_in = fym_base)
+
+  dr_ratio_reg <- normalise_c_inputs(c_in = c_inputs_reg, 
+                                     fym_in = fym_reg)
   
+    
   # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
   FallIOM <- 0.049 * SOC^(1.139) # IOM using Falloon method
@@ -90,7 +94,7 @@ for (i in 1:no_tests){
     soil_thick = soil_thick,
     clay = clay,
     c_inputs = c_inputs_base,
-    dr_ratio = dr_ratio,
+    dr_ratio = dr_ratio_base,
     pE = pE,
     PS = c(DPM=0, RPM=0, BIO=0, HUM=0, IOM=FallIOM),
     description = "Base Case",
@@ -110,7 +114,7 @@ for (i in 1:no_tests){
     soil_thick = soil_thick,
     clay = clay,
     c_inputs = c_inputs_reg,
-    dr_ratio = dr_ratio,
+    dr_ratio = dr_ratio_reg,
     pE = pE,
     PS = starting_soil_content,
     description = desc,

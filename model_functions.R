@@ -94,6 +94,21 @@ calc_soil_carbon <- function(
 }
 
 
+normalise_c_inputs <- function(
+  c_in = 0, 
+  fym_in = 0,
+  dr_ratio_crops = 1.44,
+  dr_ratio_fym = 1){
+  
+  if(c_in + fym_in != 0){
+    dr_ratio = (dr_ratio_crops*c_in + dr_ratio_fym*fym_in) / (c_in + fym_in)
+  }else{
+    dr_ratio = 1
+  }  
+  return(dr_ratio)
+  
+}
+
 get_total_C <- function(c_df){
   
   final_row <- as.numeric(tail(c_df, 1))

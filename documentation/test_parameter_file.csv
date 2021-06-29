@@ -1,3 +1,3 @@
-desc,location,crop,hectares,temp_adjustment,soil_thick,SOC,clay,c_in_base,c_in_reg,FYM,pE,time_horizon,bare_profile_1,bare_profile_2,bare_profile_3,bare_profile_4,bare_profile_5,bare_profile_6,bare_profile_7,bare_profile_8,bare_profile_9,bare_profile_10,bare_profile_11,bare_profile_12
-Low Carbon,Schwerin,Wheat,497,0,30,39,5,3,4,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
-High Carbon,Schwerin,Wheat,497,0,30,39,10,3,7,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
+desc,location,crop,hectares,temp_adjustment,soil_thick,SOC,clay,c_in_base,c_in_reg,FYM_base,FYM_reg,pE,time_horizon,bare_profile_1,bare_profile_2,bare_profile_3,bare_profile_4,bare_profile_5,bare_profile_6,bare_profile_7,bare_profile_8,bare_profile_9,bare_profile_10,bare_profile_11,bare_profile_12
+Low Carbon,Schwerin,Wheat,497,0,30,39,5,3,4,1,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
+High Carbon,Schwerin,Wheat,497,0,30,39,10,3,7,1,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1
