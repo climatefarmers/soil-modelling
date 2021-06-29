@@ -31,7 +31,7 @@ input_file_name <- "test_dobimar.csv"
 project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccdddddddddllllllllllll")
+                             col_types = "cccddddddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
@@ -54,6 +54,7 @@ for (i in 1:no_tests){
   desc <- input_parameters$desc[i]
   site_location <- input_parameters$location[i]
   crop <- input_parameters$crop[i]
+  hectares <- input_parameters$hectares[i]
   soil_thick <- input_parameters$soil_thick[i]
   SOC <- input_parameters$SOC[i]
   clay <- input_parameters$clay[i]
@@ -80,8 +81,6 @@ for (i in 1:no_tests){
   
   temp <- temp0 + temp_adjustment 
   
-  FallIOM <- 0.049 * SOC^(1.139)
-  
   C0_df <- calc_soil_carbon(
     time_horizon = 500,
     bare = bare_profile, 
@@ -102,7 +101,7 @@ for (i in 1:no_tests){
   
   starting_soil_content <- as.numeric(tail(C0_df, 1))
   
-  C_df <- calc_soil_carbon(
+  c_df <- calc_soil_carbon(
     time_horizon = time_horizon,
     bare = bare_profile, 
     temp = temp,
@@ -118,50 +117,34 @@ for (i in 1:no_tests){
     project_name = project_name
   )
   
-  
   years <- get_monthly_dataframe(time_horizon)
   
   # Generates and saves output plot
-  plot_c_stocks(years, 
-                C_df, 
-                desc,
-                project_name)
+  plot_c_stocks(years, c_df, desc, project_name)
   
-  plot_total_c(years, C_df, desc, project_name)
+  plot_total_c(years, c_df, desc, project_name)
+  
+  plot_monthly_c(month = 3, time_horizon, c_df, desc, project_name)
+  
+  plot_monthly_histogram(time_horizon, c_df, desc, project_name)
   
   
-  plot_monthly_c(month = 3, 
-                 time_horizon, 
-                 C_df, 
-                 desc, 
-                 project_name)
+  # Calculate final values 
+  c_final <- convert_to_tonnes(get_total_C(c_df))
   
-  plot_monthly_c(month = 6, 
-                 time_horizon, 
-                 C_df, 
-                 desc, 
-                 project_name)
+  c_init <- convert_to_tonnes(get_initial_C(c_df))
   
-  plot_monthly_c(month = 9, 
-                 time_horizon, 
-                 C_df, 
-                 desc, 
-                 project_name)
+  stored_carbon <- c_final - c_init
   
-  plot_monthly_histogram(time_horizon, C_df, desc, project_name)
+  annual_stored_carbon <- stored_carbon/time_horizon
   
-  C_final <- get_total_C(C_df)
-  
-  C_init <- get_initial_C(C_df)
-  
-  print(tibble(desc, C_final, C_final - C_init))
+  print(tibble(desc, c_final, stored_carbon, annual_stored_carbon))
   
   if (i == 1){
-    all_results <- data.frame(desc, C_final, C_final - C_init)
+    all_results <- data.frame(desc, c_init, c_final, stored_carbon, annual_stored_carbon)
   }else{
-    all_results <- rbind(all_results, c(desc, C_final, C_final - C_init))
+    all_results <- rbind(all_results, c(desc, c_init, c_final, stored_carbon, annual_stored_carbon))
   }
-  
 }
 
 # Create Results Path
