@@ -27,11 +27,11 @@ source(file.path(working_dir, "model_functions.R"))
 source(file.path(working_dir, "modified_functions.R"))
 
 
-input_file_name <- "test_dobimar.csv"
+input_file_name <- "test_parameter_file.csv"
 project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
-                             col_types = "cccddddddddddllllllllllll")
+                             col_types = "cccdddddddddddllllllllllll")
 
 # Test contents
 no_tests <- nrow(input_parameters)
