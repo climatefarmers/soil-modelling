@@ -1,0 +1,14 @@
+crop_type,harvest_index,root_shoot_ratio,carbon_content,rhizodeposition
+Barley,0.53,0.32,0.45,0.65
+Cereal,0.62,0.41,0.45,0.65
+Corn,0.5,0.18,0.45,0.65
+Grain Sorghum,0.25,0.5,0.45,0.65
+Grass,1,0.8,0.45,0.65
+Oats,0.53,0.5,0.45,0.65
+Oilseed,0.29,0.18,0.45,0.65
+Small-grain cereal,0.41,0.14,0.45,0.65
+Sorghum,0.44,0.24,0.45,0.65
+Soybeans,0.4,0.19,0.45,0.65
+Sugar beet,0.99,14.29,0.45,0.35
+Triticale,0.34,0.5,0.45,0.65
+Wheat,0.4,0.5,0.45,0.65
