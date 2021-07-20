@@ -67,17 +67,16 @@ for (i in 1:no_tests){
   temp_adjustment <- input_parameters$temp_adjustment[i]
   bare_profile <- get_bare_profile(input_parameters[i])
   
-  # add the fym to the c_inputs
-  c_inputs_base <- c_inputs_base + fym_base
-  c_inputs_reg <- c_inputs_reg + fym_reg
-  
   # normalise the ratio by mass of carbon inputs from crops and fym
   dr_ratio_base <- normalise_c_inputs(c_in = c_inputs_base, 
                                      fym_in = fym_base)
 
   dr_ratio_reg <- normalise_c_inputs(c_in = c_inputs_reg, 
                                      fym_in = fym_reg)
-  
+
+  # add the fym to the c_inputs
+  c_inputs_base <- c_inputs_base + fym_base
+  c_inputs_reg <- c_inputs_reg + fym_reg  
     
   # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
   
