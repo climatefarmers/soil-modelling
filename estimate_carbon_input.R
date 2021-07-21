@@ -13,22 +13,54 @@
 # Ss (-)
 # Sr (default 1)
 clean_crop_variable_data <- function(
-  crop_data = read.csv("data/crop_values.csv")
+  crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd")
   ){
   
+  
+  crop_data$crop_type <- tolower(crop_data$crop_type)
+  
+  crop_data <- crop_data %>% distinct()
+  
+  if(any(duplicated(crop_data$crop_type))){stop("Duplicated crop data. Remove multiple entries.")}
+  
+  if(any(is.na(crop_data))){stop("Missing data")}
+  
+  if(any(crop_data$rhizodeposition > 1.0)){stop("Rhiodeposition values exceed 1")}
+  
+  if(any(crop_data$carbon_content > 1.0)){stop("Carbon Content values exceed 1")}
   # check for duplicates in crop name
   # check for missing values
   # check whether maximums are necessary
   
+  return(crop_data)
+  
 }
 
 # TO DO: enable this to calculate biomass automatically for a specific crop or rotation
+
+clear_carbon_input_data <- function(carbon_input_data, crop_data){
+  
+  carbon_input_data$crop <- tolower(carbon_input_data$crop)
+  
+  crops <- carbon_input_data %>% 
+    filter(crop != "manure") %>% 
+    distinct(crop) 
+  
+  missing_data <- setdiff(crops$crop, crop_data$crop_type)
+  
+  if(length(missing_data) > 0){stop(paste("Missing crop data for", paste(missing_data, collapse = ", ")))}
+  
+  return(carbon_input_data)
+  
+}
 
 get_crop_variable <- function(
   crop = "Cereal",
   variable_name = "harvest_index",
   crop_data = read.csv("data/crop_values.csv")
 ){
+  
+  crop <- tolower(crop)
   
   if(crop %in% crop_data$crop_type){
     
