@@ -15,19 +15,132 @@ source(file.path(working_dir, "estimate_carbon_input.R"))
 project_name <- "dobimar"
 
 field_parameters <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_field_parameters.csv")),
-                             col_types = "dcccdddddddddddllllllllllll")
+                             col_types = "dccdddddllllllllllll")
 
 carbon_input_data <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_carbon_inputs.csv")),
-                              col_types = "dccddddddddddddddddddddddddd") 
+                              col_types = "dccddddddddddddd") 
 
 # Check whether data exists for all fields in both files
 check_field_differences(field_parameters, carbon_input_data)
 
 crop_data <- clean_crop_variable_data(crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd"))
 
-c_inputs <- clear_carbon_input_data(carbon_input_data, crop_data) 
+carbon_input_data <- clear_carbon_input_data(carbon_input_data, crop_data) 
 
-# Calculate the carbon input for the fields
+# TODO What about portions of residues and roots being left in the ground?
 
+field_crop_data <- carbon_input_data %>% 
+  left_join(crop_data, by = "crop") %>% 
+  mutate(yield_bm = yield * 0.45,
+         above_ground_bm = yield_bm *(1-harvest_index)/harvest_index,
+         total_bm = yield_bm + above_ground_bm,
+         roots_bm = total_bm * root_shoot_ratio,
+         extra_roots_bm = roots_bm * rhizodeposition,
+         total_c_input_tc = (above_ground_bm + roots_bm + extra_roots_bm)/1000) %>% 
+  mutate(across(contains("year"),
+                ~ case_when(is_crop == "manure" ~ annual_quantity,
+                            is_crop == "crop" ~ .x * total_c_input_tc)))
 
-                              
+carbon_input_summary <- field_crop_data %>% 
+  pivot_longer(cols = contains("year"), 
+               names_to = "year",
+               values_to = "carbon_input") %>% 
+  group_by(field_id, case, is_crop, year) %>%
+  summarise(carbon_input = sum(carbon_input, na.rm = TRUE), .groups = "drop") %>% 
+  ungroup() %>% 
+  mutate(year = as.numeric(gsub("year_", "", year))) %>% 
+  arrange(field_id, case, is_crop, year)
+
+carbon_inputs <- combine_crops_fym(carbon_input_summary)
+
+# Start Calculating field results
+
+farm_location <- unique(field_parameters$location)
+if(length(farm_location) > 1)(stop("Currently only one location is supported per run. "))
+
+weather_data <- read.csv(paste0("data/weather_average/",tolower(farm_location),"_average.csv"), 
+                         row.names = c("evap", "precip", "temp")) %>% 
+  select(-X) 
+evap <- unlist(weather_data["evap",])
+precip <- unlist(weather_data["precip",])
+temp <- unlist(weather_data["temp",])
+
+fields <- unique(field_parameters$field_id)
+
+for (i in fields){
+  desc <- field_parameters$desc[i]
+  hectares <- field_parameters$hectares[i]
+  soil_thick <- field_parameters$soil_thick[i]
+  SOC <- field_parameters$SOC[i]
+  clay <- field_parameters$clay[i]
+  pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
+  bare_profile <- get_bare_profile(field_parameters)
+  
+  # process carbon inputs data
+  field_carbon_inputs <- carbon_input_summary %>% 
+    filter(field_id == i)
+  
+  # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
+  
+  starting_soil_content <- estimate_starting_soil_content(SOC)
+  
+  time_horizon = max(field_carbon_inputs$year)
+  
+  for (t in 1: time_horizon){
+    
+    c_df <- calc_soil_carbon(
+      time_horizon = 1,
+      bare = bare_profile, 
+      temp = temp,
+      precip = precip,
+      evap = evap,
+      soil_thick = soil_thick,
+      clay = clay,
+      c_inputs = field_carbon_inputs$carbon_inputs[t],
+      dr_ratio = field_carbon_inputs$dr_ratio[t],
+      pE = pE,
+      PS = starting_soil_content,
+      description = desc,
+      project_name = project_name
+    )
+    
+    starting_soil_content <- as.numeric(tail(c_df, 1))
+    
+    c_df <- head(c_df, 12)
+    
+    if(t == 1){
+      all_c = c_df
+    }else{
+      all_c <- rbind(all_c, c_df)
+    }
+  }
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
+  years <- head(years, 120)
+  
+  # Generates and saves output plot
+  plot_c_stocks(years, all_c, desc, project_name)
+  
+  plot_total_c(years, c_df, desc, project_name)
+  
+  plot_monthly_c(month = 3, time_horizon, c_df, desc, project_name)
+  
+  plot_monthly_histogram(time_horizon, c_df, desc, project_name)
+  
+  
+  # Calculate final values 
+  c_final <- convert_to_tonnes(get_total_C(c_df))
+  
+  c_init <- convert_to_tonnes(get_initial_C(c_df))
+  
+  stored_carbon <- c_final - c_init
+  
+  annual_stored_carbon <- stored_carbon/time_horizon
+  
+  print(tibble(desc, c_final, stored_carbon, annual_stored_carbon))
+  
+  if (i == 1){
+    all_results <- data.frame(desc, c_init, c_final, stored_carbon, annual_stored_carbon)
+  }else{
+    all_results <- rbind(all_results, c(desc, c_init, c_final, stored_carbon, annual_stored_carbon))
+  }
+}

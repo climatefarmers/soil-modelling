@@ -14,14 +14,14 @@
 # Sr (default 1)
 clean_crop_variable_data <- function(
   crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd")
-  ){
+){
   
   
-  crop_data$crop_type <- tolower(crop_data$crop_type)
+  crop_data$crop <- tolower(crop_data$crop)
   
   crop_data <- crop_data %>% distinct()
   
-  if(any(duplicated(crop_data$crop_type))){stop("Duplicated crop data. Remove multiple entries.")}
+  if(any(duplicated(crop_data$crop))){stop("Duplicated crop data. Remove multiple entries.")}
   
   if(any(is.na(crop_data))){stop("Missing data")}
   
@@ -36,57 +36,50 @@ clean_crop_variable_data <- function(
   
 }
 
-# TO DO: enable this to calculate biomass automatically for a specific crop or rotation
-
 clear_carbon_input_data <- function(carbon_input_data, crop_data){
   
   carbon_input_data$crop <- tolower(carbon_input_data$crop)
+  carbon_input_data$case <- tolower(carbon_input_data$case)
+  
+  
+  carbon_input_data <- carbon_input_data %>% 
+    mutate(is_crop = ifelse(crop != "manure", "crop", "manure"))
   
   crops <- carbon_input_data %>% 
     filter(crop != "manure") %>% 
     distinct(crop) 
   
-  missing_data <- setdiff(crops$crop, crop_data$crop_type)
+  missing_data <- setdiff(crops$crop, crop_data$crop)
   
   if(length(missing_data) > 0){stop(paste("Missing crop data for", paste(missing_data, collapse = ", ")))}
   
-  return(carbon_input_data)
+  # split into just base and regen
+  case_types <- carbon_input_data %>% distinct(case)
+  if(length(setdiff(case_types$case, c("base", "base + regen", "regen"))) > 0){
+    stop("Case Type can only be base, base + regen or regen. Check text matches exactly.")
+    }
   
-}
-
-get_crop_variable <- function(
-  crop = "Cereal",
-  variable_name = "harvest_index",
-  crop_data = read.csv("data/crop_values.csv")
-){
+  carbon_input_data_br <- carbon_input_data %>% 
+    filter(case == "base + regen")
+    
+  carbon_input_data_base <- carbon_input_data_br %>% mutate(case = "base")  
+  carbon_input_data_regen <- carbon_input_data_br %>% mutate(case = "regen")  
   
-  crop <- tolower(crop)
+  carbon_input_data_all <- carbon_input_data %>% 
+    filter(case != "base + regen") %>% 
+    rbind(carbon_input_data_base,
+          carbon_input_data_regen) 
   
-  if(crop %in% crop_data$crop_type){
-    
-    if(!variable_name %in% colnames(crop_data))(stop("Variable name not in data."))
-    
-    crop_variable <- crop_data %>% 
-      filter(crop_type == crop) %>% 
-      pull(variable_name)
-    
-  }else{
-    
-    stop("Crop not present in data file. Get additional data.")
-    
-  }
-  
-  return(crop_variable)
+  return(carbon_input_data_all)
   
 }
 
 calculate_carbon_input <- function(
-  dry_yield = 1000,         # t/ha/year
-  harvest_index = 0.5,
-  root_to_shoot_ratio = 0.18,
-  rhizo_ratio = 0.65,       # Bolinder number
-  residue_remaining = 0.25, # 0 - 1 with 1 meaning all residue left on ground
-  root_decomposition = 1    # default. 0 implies all roots are removed from the soil
+  dry_yield = 1000,          # t/ha/year
+  residue_remaining = 0.25,  # 0 - 1 with 1 meaning all residue left on ground
+  harvest_index = 0.5,       # from the crop_data file
+  root_to_shoot_ratio = 0.18,# from the crop_data file
+  rhizo_ratio = 0.65         # Bolinder number
 ){
   
   yield_bm <- (dry_yield*0.45)
@@ -119,5 +112,19 @@ check_field_differences <- function(
   if(length(ci_missing) > 0){stop(paste("Missing Field data for fields", ci_missing))}
   if(length(fp_missing) > 0){stop(paste("Missing Carbon Input data for fields", fp_missing))}
   
+  
+}
+
+estimate_starting_soil_content <- function(
+  SOC = 1
+){
+  
+  factors = c(0.0065, 0.1500, 0.0212, 0.8224)
+  FallIOM <- 0.049 * SOC^(1.139)
+  rest_soc = SOC - FallIOM
+  
+  starting_soc = c(factors * rest_soc, FallIOM)
+  
+  return(starting_soc)
   
 }

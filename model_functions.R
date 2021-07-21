@@ -10,10 +10,12 @@ convert_to_tonnes <- function(value,
   
 }
 
-get_monthly_dataframe <- function(time_horizon = 10){
+get_monthly_dataframe <- function(time_horizon = 10, add_month = T){
   
   years <- seq(1/12, time_horizon+1/12, by = 1/12)
-  
+
+  if (add_month == F){  years <- seq(1/12, time_horizon, by = 1/12)}
+    
 }
 
 calc_soil_carbon <- function(
@@ -34,7 +36,7 @@ calc_soil_carbon <- function(
 ){
   
   # Monthly data frame
-  years <- get_monthly_dataframe(time_horizon)
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
   
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
@@ -82,15 +84,35 @@ calc_soil_carbon <- function(
   c_t <- as_tibble(c_t)
   names(c_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
-  r_t <- getReleaseFlux(Model)
-  r_t <- as_tibble(r_t)
-  names(r_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
+  # r_t <- getReleaseFlux(Model)
+  # r_t <- as_tibble(r_t)
+  # names(r_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
   if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
-  write.csv(fW, file.path("results", project_name, paste0(description,"_fW.csv")))
+  write.csv(c_t, file.path("results", project_name, paste0(description,".csv")))
   
   return(c_t)
   
+}
+
+
+combine_crops_fym <- function(
+  field_carbon_inputs, 
+  dr_ratio_crops = 1.44,
+  dr_ratio_fym = 1
+){
+  
+  field_carbon_inputs <- field_carbon_inputs %>% 
+    mutate(c_in = 
+             case_when(
+               is_crop == "crop" ~ carbon_input * dr_ratio_crops,
+               is_crop == "manure" ~ carbon_input * dr_ratio_fym
+             )) %>% 
+    group_by(field_id, case, year) %>% 
+    summarise(carbon_inputs = carbon_input, 
+              dr_ratio = sum(c_in, na.rm = T)/sum(carbon_input, na.rm = T), .groups = "drop") 
+  
+  return(field_carbon_inputs)
 }
 
 
@@ -254,13 +276,11 @@ plot_c_diff <- function(years,
   
 }
 
-get_bare_profile <- function(input_parameters_0){
+get_bare_profile <- function(field_parameters){
   
   # input_parameters should be a single line of the input_parameter file
   
-  input_parameters_0 <- input_parameters[i,]
-  
-  ip0 <- input_parameters_0 %>% select(contains("bare_profile"))
+  ip0 <- field_parameters[i,] %>% select(contains("bare_profile"))
   
   if(ncol(ip0) != 12){stop("Missing information about the bare profile months. ")}
   
