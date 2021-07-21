@@ -22,7 +22,7 @@ clean_crop_variable_data <- function(
   
 }
 
-
+# TO DO: enable this to calculate biomass automatically for a specific crop or rotation
 
 get_crop_variable <- function(
   crop = "Cereal",
@@ -48,9 +48,6 @@ get_crop_variable <- function(
   
 }
 
-
-
-
 calculate_carbon_input <- function(
   dry_yield = 1000,         # t/ha/year
   harvest_index = 0.5,
@@ -72,5 +69,23 @@ calculate_carbon_input <- function(
   total_c_input_tc <- total_c_input /1000
   
   return(total_c_input_tc)
+  
+}
+
+
+check_field_differences <- function(
+  field_parameters, 
+  carbon_input_data
+){
+  
+  fields_unique_fp <- unique(field_parameters$field_id)
+  fields_unique_ci <- unique(carbon_input_data$field_id)
+  
+  ci_missing <- setdiff(fields_unique_fp, fields_unique_ci)
+  fp_missing <- setdiff(fields_unique_ci, fields_unique_fp)
+  
+  if(length(ci_missing) > 0){stop(paste("Missing Field data for fields", ci_missing))}
+  if(length(fp_missing) > 0){stop(paste("Missing Carbon Input data for fields", fp_missing))}
+  
   
 }
