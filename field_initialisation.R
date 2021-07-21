@@ -18,14 +18,16 @@ field_parameters <- read_csv(file.path(working_dir, "parameter_files", paste0(pr
                              col_types = "dcccdddddddddddllllllllllll")
 
 carbon_input_data <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_carbon_inputs.csv")),
-                              col_types = "dccddddddddddddddddddddddddd")
+                              col_types = "dccddddddddddddddddddddddddd") 
 
-# Check the differences in the two files 
-# Number of fields 
+# Check whether data exists for all fields in both files
+check_field_differences(field_parameters, carbon_input_data)
 
-check_field_differences()
+crop_data <- clean_crop_variable_data(crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd"))
 
+c_inputs <- clear_carbon_input_data(carbon_input_data, crop_data) 
 
+# Calculate the carbon input for the fields
 
 
                               
