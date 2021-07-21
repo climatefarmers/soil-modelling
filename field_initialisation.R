@@ -80,14 +80,12 @@ for (i in fields){
   field_carbon_inputs <- carbon_input_summary %>% 
     filter(field_id == i)
   
-  # Set bare in the calc_soil_carbon to either a logical, bare or a 12 long string, bare_profile 
-  
   starting_soil_content <- estimate_starting_soil_content(SOC)
   
   time_horizon = max(field_carbon_inputs$year)
   
   for (t in 1: time_horizon){
-    
+
     c_df <- calc_soil_carbon(
       time_horizon = 1,
       bare = bare_profile, 
@@ -96,7 +94,7 @@ for (i in fields){
       evap = evap,
       soil_thick = soil_thick,
       clay = clay,
-      c_inputs = field_carbon_inputs$carbon_inputs[t],
+      c_inputs = field_carbon_inputs$carbon_input[t],
       dr_ratio = field_carbon_inputs$dr_ratio[t],
       pE = pE,
       PS = starting_soil_content,
@@ -115,22 +113,16 @@ for (i in fields){
     }
   }
   years <- get_monthly_dataframe(time_horizon, add_month = F)
-  years <- head(years, 120)
   
   # Generates and saves output plot
   plot_c_stocks(years, all_c, desc, project_name)
   
-  plot_total_c(years, c_df, desc, project_name)
-  
-  plot_monthly_c(month = 3, time_horizon, c_df, desc, project_name)
-  
-  plot_monthly_histogram(time_horizon, c_df, desc, project_name)
-  
+  plot_total_c(years, all_c, desc, project_name)
   
   # Calculate final values 
-  c_final <- convert_to_tonnes(get_total_C(c_df))
+  c_final <- convert_to_tonnes(get_total_C(all_c))
   
-  c_init <- convert_to_tonnes(get_initial_C(c_df))
+  c_init <- convert_to_tonnes(get_initial_C(all_c))
   
   stored_carbon <- c_final - c_init
   
