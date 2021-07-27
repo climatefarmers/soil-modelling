@@ -77,8 +77,8 @@ for (i in fields){
   bare_profile <- get_bare_profile(field_parameters)
   
   # process carbon inputs data
-  field_carbon_inputs <- carbon_input_summary %>% 
-    filter(field_id == i)
+  field_carbon_inputs <- carbon_inputs %>% 
+    filter(field_id == i, case == "base")
   
   starting_soil_content <- estimate_starting_soil_content(SOC)
   
@@ -86,6 +86,10 @@ for (i in fields){
   
   for (t in 1: time_horizon){
 
+    
+    # TODO Fix carbon inputs  
+    # field_carbon_tot_in = 
+    
     c_df <- calc_soil_carbon(
       time_horizon = 1,
       bare = bare_profile, 
@@ -94,8 +98,8 @@ for (i in fields){
       evap = evap,
       soil_thick = soil_thick,
       clay = clay,
-      c_inputs = field_carbon_inputs$carbon_input[t],
-      dr_ratio = field_carbon_inputs$dr_ratio[t],
+      c_inputs = field_carbon_inputs$carbon_inputs[field_carbon_inputs$year == t],
+      dr_ratio = field_carbon_inputs$dr_ratio[field_carbon_inputs$year == t],
       pE = pE,
       PS = starting_soil_content,
       description = desc,
