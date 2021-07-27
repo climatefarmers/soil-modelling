@@ -97,19 +97,19 @@ calc_soil_carbon <- function(
 
 
 combine_crops_fym <- function(
-  field_carbon_inputs, 
+  carbon_input_summary, 
   dr_ratio_crops = 1.44,
   dr_ratio_fym = 1
 ){
   
-  field_carbon_inputs <- field_carbon_inputs %>% 
+  field_carbon_inputs <- carbon_input_summary %>% 
     mutate(c_in = 
              case_when(
                is_crop == "crop" ~ carbon_input * dr_ratio_crops,
                is_crop == "manure" ~ carbon_input * dr_ratio_fym
              )) %>% 
     group_by(field_id, case, year) %>% 
-    summarise(carbon_inputs = carbon_input, 
+    summarise(carbon_inputs = sum(carbon_input, na.rm = T), 
               dr_ratio = sum(c_in, na.rm = T)/sum(carbon_input, na.rm = T), .groups = "drop") 
   
   return(field_carbon_inputs)
