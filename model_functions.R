@@ -52,7 +52,6 @@ calc_soil_carbon <- function(
       bare = bare
     )$b 
   }else if(length(bare) == 12){ 
-    
     # Use the modified version if there is monthly variation in coverage
     fW <- fW.RothC.Modified(
       P = (precip), 
@@ -87,6 +86,90 @@ calc_soil_carbon <- function(
   return(c_t)
   
 }
+
+
+
+solve_for_c_0 <- function(
+  SOC_target = 39,
+  time_horizon = 10,
+  bare = FALSE,   
+  temp = temp,
+  precip = precip,
+  evap = evap,
+  soil_thick = soil_thick,
+  clay = clay,
+  dr_ratio = 1.44,
+  fym_inputs = 0,
+  pE = 1.0,
+  PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
+){
+  
+  # Use a solve function to solve for Cin
+  
+  # Monthly data frame
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
+  
+  # Calculate monthly temperature effects
+  fT <- fT.RothC(temp) 
+  
+  if(length(bare) == 1){
+    # Calculate monthly moisture effects
+    fW <- fW.RothC(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare = bare
+    )$b 
+  }else if(length(bare) == 12){ 
+    # Use the modified version if there is monthly variation in coverage
+    fW <- fW.RothC.Modified(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare_profile = bare
+    )$b 
+  }
+  
+  # Moisture factors over time
+  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
+  
+  
+  calc_diff(c_inputs = 10)
+  calc_diff(c_inputs = 20)
+  calc_diff(c_inputs = 18)
+  calc_diff(c_inputs = 17)
+  calc_diff(c_inputs = 17.8)  
+  
+ bisect(calc_diff, 0, 100)$root
+  
+}
+
+calc_diff <- function(c_inputs){
+  Model <- RothCModel(
+    t = years, 
+    ks = c(k.DPM = 10, k.RPM = 0.3, k.BIO = 0.66, k.HUM = 0.02, k.ION = 0),
+    C0 = c(DPM = PS),
+    In = c_inputs, 
+    DR = dr_ratio,
+    clay = clay, 
+    xi = xi_frame
+  ) 
+  
+  # Calculates stocks for each pool per month  
+  c_t <- getC(Model) 
+  
+  output_SOC <- get_total_C(tail(c_t,1))
+  
+  diff_SOC <- SOC_target - output_SOC
+  
+  return(diff_SOC)
+}
+
+
 
 
 combine_crops_fym <- function(
@@ -143,6 +226,24 @@ get_initial_C <- function(c_df){
   return(init_value)
   
 }
+
+estimate_starting_soil_content <- function(
+  SOC = 1
+){
+  
+  factors = c(0.0065, 0.1500, 0.0212, 0.8224)
+  FallIOM <- 0.049 * SOC^(1.139)
+  rest_soc = SOC - FallIOM
+  
+  starting_soc = c(factors * rest_soc, FallIOM)
+  
+  return(starting_soc)
+  
+}
+
+
+
+
 
 
 plot_c_stocks <- function(years, 
