@@ -104,6 +104,8 @@ solve_for_c_0 <- function(
   PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
 ){
   
+  PS["IOM"] = 0.049 * SOC_target^(1.139) 
+  
   # Use a solve function to solve for Cin
   
   # Monthly data frame
