@@ -1,19 +1,7 @@
 # harvest_index.R
 
-# Estimate the soil carbon input through the harvest index
-
-# HI = mass of harvest (t) / mass of above-ground biomass (t)
-
-
-# Yield (t/ha/yr)
-# Carbon concentration (default 0.45)
-# Harvest index
-# Shoot-to-root-ratio
-# Rhizodeposition ratio (default 0.65 after Bolinder)
-# Ss (-)
-# Sr (default 1)
 clean_crop_variable_data <- function(
-  crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd")
+  crop_data
 ){
   
   
@@ -57,11 +45,11 @@ clear_carbon_input_data <- function(carbon_input_data, crop_data){
   case_types <- carbon_input_data %>% distinct(case)
   if(length(setdiff(case_types$case, c("base", "base + regen", "regen"))) > 0){
     stop("Case Type can only be base, base + regen or regen. Check text matches exactly.")
-    }
+  }
   
   carbon_input_data_br <- carbon_input_data %>% 
     filter(case == "base + regen")
-    
+  
   carbon_input_data_base <- carbon_input_data_br %>% mutate(case = "base")  
   carbon_input_data_regen <- carbon_input_data_br %>% mutate(case = "regen")  
   
@@ -115,16 +103,7 @@ check_field_differences <- function(
   
 }
 
-estimate_starting_soil_content <- function(
-  SOC = 1
-){
-  
-  factors = c(0.0065, 0.1500, 0.0212, 0.8224)
-  FallIOM <- 0.049 * SOC^(1.139)
-  rest_soc = SOC - FallIOM
-  
-  starting_soc = c(factors * rest_soc, FallIOM)
-  
-  return(starting_soc)
-  
-}
+
+
+
+
