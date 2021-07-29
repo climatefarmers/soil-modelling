@@ -13,9 +13,9 @@ convert_to_tonnes <- function(value,
 get_monthly_dataframe <- function(time_horizon = 10, add_month = T){
   
   years <- seq(1/12, time_horizon+1/12, by = 1/12)
-
+  
   if (add_month == F){  years <- seq(1/12, time_horizon, by = 1/12)}
-    
+  
 }
 
 calc_soil_carbon <- function(
@@ -137,18 +137,41 @@ solve_for_c_0 <- function(
   # Moisture factors over time
   xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
   
+  # Solves the difference between modeled SOC and measured SOC by varying c_inputs
+  c_inputs <- bisect(calc_diff, 0, 100, 
+                     years = years,
+                     SOC_target = SOC_target,
+                     dr_ratio = dr_ratio,
+                     clay = clay,
+                     xi_frame = xi_frame)$root
   
-  calc_diff(c_inputs = 10)
-  calc_diff(c_inputs = 20)
-  calc_diff(c_inputs = 18)
-  calc_diff(c_inputs = 17)
-  calc_diff(c_inputs = 17.8)  
+  Model <- RothCModel(
+    t = years, 
+    ks = c(k.DPM = 10, k.RPM = 0.3, k.BIO = 0.66, k.HUM = 0.02, k.ION = 0),
+    C0 = c(DPM = PS),
+    In = c_inputs, 
+    DR = dr_ratio,
+    clay = clay, 
+    xi = xi_frame
+  ) 
   
- bisect(calc_diff, 0, 100)$root
+  # Calculates stocks for each pool per month  
+  c_t <- getC(Model) 
+  
+  output_SOC <- tail(c_t,1)
+  
+  return(c_inputs)
   
 }
 
-calc_diff <- function(c_inputs){
+calc_diff <- function(
+  c_inputs,
+  years = years,
+  SOC_target = SOC_target,
+  dr_ratio = dr_ratio,
+  clay = clay,
+  xi_frame = xi_frame){
+  
   Model <- RothCModel(
     t = years, 
     ks = c(k.DPM = 10, k.RPM = 0.3, k.BIO = 0.66, k.HUM = 0.02, k.ION = 0),
@@ -166,11 +189,10 @@ calc_diff <- function(c_inputs){
   
   diff_SOC <- SOC_target - output_SOC
   
+  if(abs(diff_SOC) < 0.1){diff_SOC = 0}
+  
   return(diff_SOC)
 }
-
-
-
 
 combine_crops_fym <- function(
   carbon_input_summary, 
@@ -240,10 +262,6 @@ estimate_starting_soil_content <- function(
   return(starting_soc)
   
 }
-
-
-
-
 
 
 plot_c_stocks <- function(years, 

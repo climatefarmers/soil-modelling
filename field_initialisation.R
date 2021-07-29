@@ -4,7 +4,7 @@
 # Read in data, calculate base and new carbon inputs per field, run analysis 
 
 if (!require("pacman")) install.packages("pacman"); library(pacman)
-p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
+p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma)
 
 working_dir <- getwd()
 
@@ -80,14 +80,24 @@ for (i in fields){
   pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
   bare_profile <- get_bare_profile(field_parameters)
   
+  starting_soil_content_0 <- solve_for_c_0(
+    SOC_target = SOC,
+    time_horizon = 100,
+    bare = bare_profile,   
+    temp = temp,
+    precip = precip,
+    evap = evap,
+    soil_thick = soil_thick,
+    clay = clay
+  )
   
   for (case_select in c("base", "regen")){
+    
+    starting_soil_content <- starting_soil_content_0
     
     # process carbon inputs data
     field_carbon_inputs <- carbon_inputs %>% 
       filter(field_id == i, case == case_select)
-    
-    starting_soil_content <- estimate_starting_soil_content(SOC)
     
     time_horizon = max(field_carbon_inputs$year)
     
