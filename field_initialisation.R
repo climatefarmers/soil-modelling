@@ -94,7 +94,6 @@ for (i in fields){
     for (t in 1: time_horizon){
       
       # Runs the model for a single year, taking the inputs from the previous year as the SOC
-      
       c_df <- calc_soil_carbon(
         time_horizon = 1,
         bare = bare_profile, 
@@ -113,8 +112,6 @@ for (i in fields){
       
       # Sets new starting_soil_content
       starting_soil_content <- as.numeric(tail(c_df, 1))
-      
-      c_df <- head(c_df, 12)
       
       if(t == 1){
         all_c = c_df
@@ -144,13 +141,6 @@ for (i in fields){
     print(tibble(case_name, c_final, stored_carbon, annual_stored_carbon))
     
     if (i == 1 & case_select == "base"){
-      # all_results <- tibble("field_id" = i, 
-      #                       "case_type" = case_select, 
-      #                       "initial_carbon" = c_init, 
-      #                       "final_carbon" = c_final, 
-      #                       "stored_carbon" = stored_carbon, 
-      #                       "annual_stored_carbon" = annual_stored_carbon)
-      
       all_results <- tibble(i, 
                             case_select, 
                             c_init, 
@@ -168,18 +158,15 @@ for (i in fields){
                 annual_stored_carbon)
     }
     
-    
     write.csv(all_c, file.path("results", project_name, paste0(case_name,".csv")), row.names = F)
   }
 }
 
-# field_parameters <- field_parameters %>% mutate(field_id = as.character(field_id))
-
 all_results_summary <- all_results %>% 
   left_join(field_parameters %>% select(field_id, hectares), by = c("i" = "field_id")) %>% 
-  mutate(c_init = c_init*hectares,
-         c_final = c_final*hectares,
-         stored_carbon = annual_stored_carbon *hectares,
+  mutate(c_init = c_init * hectares,
+         c_final = c_final * hectares,
+         stored_carbon = annual_stored_carbon * hectares,
          annual_stored_carbon = annual_stored_carbon * hectares) %>% 
   group_by(case_select) %>% 
   summarise(c_init = sum(c_init, na.rm = T),
