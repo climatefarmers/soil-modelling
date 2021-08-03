@@ -80,7 +80,7 @@ for (i in fields){
   pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
   bare_profile <- get_bare_profile(field_parameters)
   
-  starting_soil_content_0 <- solve_for_c_0(
+  starting_soil_content_0 <- solve_for_initial_carbon_stocks(
     SOC_target = SOC,
     time_horizon = 100,
     bare = bare_profile,   
