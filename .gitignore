@@ -42,3 +42,7 @@ vignettes/*.pdf
 /results/
 /plots/
 /parameter_files/
+
+
+# Python
+__pycache__/

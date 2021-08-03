@@ -10,9 +10,11 @@ convert_to_tonnes <- function(value,
   
 }
 
-get_monthly_dataframe <- function(time_horizon = 10){
+get_monthly_dataframe <- function(time_horizon = 10, add_month = T){
   
   years <- seq(1/12, time_horizon+1/12, by = 1/12)
+  
+  if (add_month == F){  years <- seq(1/12, time_horizon, by = 1/12)}
   
 }
 
@@ -34,7 +36,7 @@ calc_soil_carbon <- function(
 ){
   
   # Monthly data frame
-  years <- get_monthly_dataframe(time_horizon)
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
   
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
@@ -50,7 +52,6 @@ calc_soil_carbon <- function(
       bare = bare
     )$b 
   }else if(length(bare) == 12){ 
-    
     # Use the modified version if there is monthly variation in coverage
     fW <- fW.RothC.Modified(
       P = (precip), 
@@ -82,12 +83,138 @@ calc_soil_carbon <- function(
   c_t <- as_tibble(c_t)
   names(c_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
   
-  r_t <- getReleaseFlux(Model)
-  r_t <- as_tibble(r_t)
-  names(r_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
-    
   return(c_t)
   
+}
+
+
+
+solve_for_c_0 <- function(
+  SOC_target = 39,
+  time_horizon = 10,
+  bare = FALSE,   
+  temp = temp,
+  precip = precip,
+  evap = evap,
+  soil_thick = soil_thick,
+  clay = clay,
+  dr_ratio = 1.44,
+  fym_inputs = 0,
+  pE = 1.0,
+  PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
+){
+  
+  PS["IOM"] = 0.049 * SOC_target^(1.139) 
+  
+  # Use a solve function to solve for Cin
+  
+  # Monthly data frame
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
+  
+  # Calculate monthly temperature effects
+  fT <- fT.RothC(temp) 
+  
+  if(length(bare) == 1){
+    # Calculate monthly moisture effects
+    fW <- fW.RothC(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare = bare
+    )$b 
+  }else if(length(bare) == 12){ 
+    # Use the modified version if there is monthly variation in coverage
+    fW <- fW.RothC.Modified(
+      P = (precip), 
+      E = (evap),
+      S.Thick = soil_thick, 
+      pClay = clay,
+      pE = pE, 
+      bare_profile = bare
+    )$b 
+  }
+  
+  # Moisture factors over time
+  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
+  
+  # Solves the difference between modeled SOC and measured SOC by varying c_inputs
+  c_inputs <- bisect(calc_diff, 0, 100, 
+                     years = years,
+                     PS = PS,
+                     SOC_target = SOC_target,
+                     dr_ratio = dr_ratio,
+                     clay = clay,
+                     xi_frame = xi_frame)$root
+  
+  Model <- RothCModel(
+    t = years, 
+    ks = c(k.DPM = 10, k.RPM = 0.3, k.BIO = 0.66, k.HUM = 0.02, k.ION = 0),
+    C0 = c(DPM = PS),
+    In = c_inputs, 
+    DR = dr_ratio,
+    clay = clay, 
+    xi = xi_frame
+  ) 
+  
+  # Calculates stocks for each pool per month  
+  c_t <- getC(Model) 
+  
+  output_SOC <- tail(c_t,1)
+  
+  return(c_inputs)
+  
+}
+
+calc_diff <- function(
+  c_inputs,
+  years = years,
+  PS = PS,
+  SOC_target = SOC_target,
+  dr_ratio = dr_ratio,
+  clay = clay,
+  xi_frame = xi_frame){
+  
+  Model <- RothCModel(
+    t = years, 
+    ks = c(k.DPM = 10, k.RPM = 0.3, k.BIO = 0.66, k.HUM = 0.02, k.ION = 0),
+    C0 = c(DPM = PS),
+    In = c_inputs, 
+    DR = dr_ratio,
+    clay = clay, 
+    xi = xi_frame
+  ) 
+  
+  # Calculates stocks for each pool per month  
+  c_t <- getC(Model) 
+  
+  output_SOC <- get_total_C(tail(c_t,1))
+  
+  diff_SOC <- SOC_target - output_SOC
+  
+  if(abs(diff_SOC) < 0.1){diff_SOC = 0}
+  
+  return(diff_SOC)
+}
+
+combine_crops_fym <- function(
+  carbon_input_summary, 
+  dr_ratio_crops = 1.44,
+  dr_ratio_fym = 1
+){
+  
+  field_carbon_inputs <- carbon_input_summary %>% 
+    mutate(c_in = 
+             case_when(
+               is_crop == "crop" ~ carbon_input * dr_ratio_crops,
+               is_crop == "manure" ~ carbon_input * dr_ratio_fym
+             )) %>% 
+    group_by(field_id, case, year) %>% 
+    summarise(carbon_inputs = sum(carbon_input, na.rm = T), 
+              dr_ratio = sum(c_in, na.rm = T)/sum(carbon_input, na.rm = T), .groups = "drop") 
+  
+  return(field_carbon_inputs)
 }
 
 
@@ -123,6 +250,20 @@ get_initial_C <- function(c_df){
   init_value <- sum(initial_row)
   
   return(init_value)
+  
+}
+
+estimate_starting_soil_content <- function(
+  SOC = 1
+){
+  
+  factors = c(0.0065, 0.1500, 0.0212, 0.8224)
+  FallIOM <- 0.049 * SOC^(1.139)
+  rest_soc = SOC - FallIOM
+  
+  starting_soc = c(factors * rest_soc, FallIOM)
+  
+  return(starting_soc)
   
 }
 
@@ -251,13 +392,11 @@ plot_c_diff <- function(years,
   
 }
 
-get_bare_profile <- function(input_parameters_0){
+get_bare_profile <- function(field_parameters){
   
   # input_parameters should be a single line of the input_parameter file
   
-  input_parameters_0 <- input_parameters[i,]
-  
-  ip0 <- input_parameters_0 %>% select(contains("bare_profile"))
+  ip0 <- field_parameters[i,] %>% select(contains("bare_profile"))
   
   if(ncol(ip0) != 12){stop("Missing information about the bare profile months. ")}
   
