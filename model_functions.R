@@ -89,7 +89,7 @@ calc_soil_carbon <- function(
 
 
 
-solve_for_c_0 <- function(
+solve_for_initial_carbon_stocks <- function(
   SOC_target = 39,
   time_horizon = 10,
   bare = FALSE,   
@@ -163,7 +163,7 @@ solve_for_c_0 <- function(
   
   output_SOC <- tail(c_t,1)
   
-  return(c_inputs)
+  return(output_SOC)
   
 }
 
