@@ -1,0 +1,5 @@
+field_id,case,crop,yield ,residue,annual_quantity,year_1,year_2,year_3,year_4,year_5,year_6,year_7,year_8,year_9,year_10
+1,base + regen,wheat,84,0,,1,1,1,1,1,1,1,1,1,1
+2,base + regen,wheat,84,0,,1,1,1,1,1,1,1,1,1,1
+3,base + regen,wheat,84,0,,1,1,1,1,1,1,1,1,1,1
+3,regen,,,0,10,1,1,1,1,1,1,1,1,1,1
