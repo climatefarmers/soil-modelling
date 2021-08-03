@@ -85,10 +85,7 @@ calc_soil_carbon <- function(
   r_t <- getReleaseFlux(Model)
   r_t <- as_tibble(r_t)
   names(r_t) <- c("DPM", "RPM", "BIO", "HUM", "IOM")
-  
-  if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
-  write.csv(fW, file.path("results", project_name, paste0(description,"_fW.csv")))
-  
+    
   return(c_t)
   
 }
