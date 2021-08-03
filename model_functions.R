@@ -271,19 +271,21 @@ estimate_starting_soil_content <- function(
 apply_tilling_factors <- function(
   starting_soil_content,
   climate_zone = "temperate moist",
-  current_practice = "conventional till",
+  previous_practice = "conventional till",
   new_practice = "no till",
   tilling_factors = tilling_factors
 ){
   
+  climate_zone <- tolower(climate_zone)
+  
   if(!climate_zone %in% unique(tilling_factors$climate)){stop("Check climate zone in tilling factors")}
-  if(!current_practice %in% unique(tilling_factors$current_practice)){stop("Check current practice in tilling factors")}
+  if(!previous_practice %in% unique(tilling_factors$previous_practice)){stop("Check previous practice in tilling factors")}
   if(!new_practice %in% unique(tilling_factors$new_practice)){stop("Check new practice in tilling factors")}
   
   
   tilling_factor <- tilling_factors %>% 
     filter(climate == !!climate_zone,
-          current_practice == !!current_practice,
+          previous_practice == !!previous_practice,
            new_practice == !!new_practice) %>% 
     pull(factor)
   

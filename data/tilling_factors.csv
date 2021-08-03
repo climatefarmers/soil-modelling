@@ -1,4 +1,4 @@
-﻿climate,current_practice,new_practice,factor
+﻿climate,previous_practice,new_practice,factor
 temperate moist,no till,no till,1
 temperate moist,no till,reduced till,0.94
 temperate moist,no till,conventional till,0.86

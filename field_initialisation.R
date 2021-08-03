@@ -127,13 +127,14 @@ for (i in fields){
       
       # Sets new starting_soil_content
       starting_soil_content <- as.numeric(tail(c_df, 1))
+      print(starting_soil_content)
       
       starting_soil_content <- apply_tilling_factors(starting_soil_content,
-                                                     climate_zone = "temperate moist",
-                                                     current_practice = "conventional till",
-                                                     new_practice = "no till",
+                                                     climate_zone = climate_zone,
+                                                     previous_practice = prev_tilling_practice,
+                                                     new_practice = new_tilling_practice,
                                                      tilling_factors)
-      
+      print(starting_soil_content)
       
       if(t == 1){
         all_c = c_df
