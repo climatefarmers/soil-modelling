@@ -18,7 +18,7 @@ if(!dir.exists(file.path("results", project_name))){dir.create(file.path("result
 if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
 
 field_parameters <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_field_parameters.csv")),
-                             col_types = "dccdddddllllllllllll")
+                             col_types = "dcccdddddccllllllllllll")
 
 carbon_input_data <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_carbon_inputs.csv")),
                               col_types = "dccddddddddddddd") 
@@ -80,6 +80,9 @@ for (i in fields){
   SOC <- field_parameters$SOC[i]
   clay <- field_parameters$clay[i]
   pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
+  prev_tilling_practice <- field_parameters$prev_tilling_practice[i]
+  new_tilling_practice <- field_parameters$new_tilling_practice[i]
+  climate_zone <- field_parameters$climate_zone[i]
   bare_profile <- get_bare_profile(field_parameters)
   
   starting_soil_content_0 <- solve_for_c_0(
@@ -124,6 +127,13 @@ for (i in fields){
       
       # Sets new starting_soil_content
       starting_soil_content <- as.numeric(tail(c_df, 1))
+      
+      starting_soil_content <- apply_tilling_factors(starting_soil_content,
+                                                     climate_zone = "temperate moist",
+                                                     current_practice = "conventional till",
+                                                     new_practice = "no till",
+                                                     tilling_factors)
+      
       
       if(t == 1){
         all_c = c_df
