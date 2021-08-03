@@ -28,6 +28,8 @@ check_field_differences(field_parameters, carbon_input_data)
 
 crop_data <- clean_crop_variable_data(crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd"))
 
+tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd")
+
 carbon_input_data <- clear_carbon_input_data(carbon_input_data, crop_data) 
 
 # TODO What about portions of residues and roots being left in the ground?
