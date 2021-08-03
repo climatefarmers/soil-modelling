@@ -142,6 +142,7 @@ solve_for_c_0 <- function(
   # Solves the difference between modeled SOC and measured SOC by varying c_inputs
   c_inputs <- bisect(calc_diff, 0, 100, 
                      years = years,
+                     PS = PS,
                      SOC_target = SOC_target,
                      dr_ratio = dr_ratio,
                      clay = clay,
@@ -169,6 +170,7 @@ solve_for_c_0 <- function(
 calc_diff <- function(
   c_inputs,
   years = years,
+  PS = PS,
   SOC_target = SOC_target,
   dr_ratio = dr_ratio,
   clay = clay,
