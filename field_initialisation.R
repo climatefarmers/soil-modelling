@@ -80,7 +80,6 @@ for (i in fields){
   SOC <- field_parameters$SOC[i]
   clay <- field_parameters$clay[i]
   pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
-  prev_tilling_practice <- field_parameters$prev_tilling_practice[i]
   new_tilling_practice <- field_parameters$new_tilling_practice[i]
   climate_zone <- field_parameters$climate_zone[i]
   bare_profile <- get_bare_profile(field_parameters)
@@ -140,7 +139,6 @@ for (i in fields){
     # apply tilling losses
     tilling_factor <- calc_tilling_factor(starting_soil_content,
                                           climate_zone = climate_zone,
-                                          previous_practice = prev_tilling_practice,
                                           new_practice = new_tilling_practice,
                                           tilling_factors)
     
