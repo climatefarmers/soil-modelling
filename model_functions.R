@@ -268,7 +268,7 @@ estimate_starting_soil_content <- function(
 }
 
 
-apply_tilling_factors <- function(
+calc_tilling_factor <- function(
   starting_soil_content,
   climate_zone = "temperate moist",
   previous_practice = "conventional till",
@@ -285,15 +285,36 @@ apply_tilling_factors <- function(
   
   tilling_factor <- tilling_factors %>% 
     filter(climate == !!climate_zone,
-          previous_practice == !!previous_practice,
+           previous_practice == !!previous_practice,
            new_practice == !!new_practice) %>% 
     pull(factor)
   
   if(length(tilling_factor) > 1){stop("Tilling factor not unique")}
   
-  starting_soil_content <- starting_soil_content * c(rep(tilling_factor,4),1)
+  return(tilling_factor)
   
-  return(starting_soil_content)
+}
+
+calc_tilling_impact <- function(tilling_factor = 1, 
+                                all_c){
+  
+  # Take the initial c values
+  c_init <- as_tibble(head(all_c,1))
+  
+  # calculate the difference at each time point from t = 0
+  all_c_diff <- all_c %>% 
+    mutate_if(is.numeric, funs(.-first(.)))
+  
+  all_c_diff <- all_c_diff * tilling_factor
+  
+  all_c_diff <- all_c_diff %>% 
+    mutate(DPM = DPM + c_init$DPM,
+           RPM = RPM + c_init$RPM,
+           BIO = BIO + c_init$BIO,
+           HUM = HUM + c_init$HUM,
+           IOM = IOM + c_init$IOM)
+  
+  return(all_c_diff)
   
 }
 
@@ -434,3 +455,5 @@ get_bare_profile <- function(field_parameters){
   
   return(bare_profile)    
 }
+
+

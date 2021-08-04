@@ -127,14 +127,8 @@ for (i in fields){
       
       # Sets new starting_soil_content
       starting_soil_content <- as.numeric(tail(c_df, 1))
-      print(starting_soil_content)
       
-      starting_soil_content <- apply_tilling_factors(starting_soil_content,
-                                                     climate_zone = climate_zone,
-                                                     previous_practice = prev_tilling_practice,
-                                                     new_practice = new_tilling_practice,
-                                                     tilling_factors)
-      print(starting_soil_content)
+      
       
       if(t == 1){
         all_c = c_df
@@ -142,6 +136,15 @@ for (i in fields){
         all_c <- rbind(all_c, c_df)
       }
     }
+    
+    # apply tilling losses
+    tilling_factor <- calc_tilling_factor(starting_soil_content,
+                                          climate_zone = climate_zone,
+                                          previous_practice = prev_tilling_practice,
+                                          new_practice = new_tilling_practice,
+                                          tilling_factors)
+    
+    all_c <- calc_tilling_impact(tilling_factor, all_c)
     
     years <- get_monthly_dataframe(time_horizon, add_month = F)
     
@@ -151,6 +154,7 @@ for (i in fields){
     plot_c_stocks(years, all_c, case_name, project_name)
     
     plot_total_c(years, all_c, case_name, project_name)
+    
     
     # Calculate final values 
     c_final <- convert_to_tonnes(get_total_C(all_c))
@@ -196,7 +200,7 @@ all_results_summary <- all_results %>%
             c_final = sum(c_final, na.rm = T),
             stored_carbon = sum(stored_carbon, na.rm = T),
             annual_stored_carbon = sum(annual_stored_carbon, na.rm = T), .groups = "drop") 
-  
+
 all_results <- all_results %>% add_row(all_results_summary) %>% 
   mutate(i = ifelse(is.na(i), "total", i))
 
