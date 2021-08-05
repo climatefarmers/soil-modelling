@@ -1,0 +1,13 @@
+﻿climate,previous_practice,new_practice,factor
+temperate moist,conventional till,no till,1.16
+temperate moist,conventional till,reduced till,1.09
+temperate moist,conventional till,conventional till,1
+tropical moist,conventional till,no till,1.23
+tropical moist,conventional till,reduced till,1.16
+tropical moist,conventional till,conventional till,1
+temperate dry,conventional till,no till,1.1
+temperate dry,conventional till,reduced till,1.03
+temperate dry,conventional till,conventional till,1
+tropical dry,conventional till,no till,1.17
+tropical dry,conventional till,reduced till,1.1
+tropical dry,conventional till,conventional till,1

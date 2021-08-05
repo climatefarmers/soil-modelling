@@ -268,6 +268,55 @@ estimate_starting_soil_content <- function(
 }
 
 
+calc_tilling_factor <- function(
+  starting_soil_content,
+  climate_zone = "temperate moist",
+  new_practice = "no till",
+  tilling_factors = tilling_factors
+){
+  
+  climate_zone <- tolower(climate_zone)
+  
+  if(!climate_zone %in% unique(tilling_factors$climate)){stop("Check climate zone in tilling factors")}
+  if(!new_practice %in% unique(tilling_factors$new_practice)){stop("Check new practice in tilling factors")}
+  
+  
+  tilling_factor <- tilling_factors %>% 
+    filter(climate == !!climate_zone,
+           previous_practice == "conventional till",
+           new_practice == !!new_practice) %>% 
+    pull(factor)
+  
+  if(length(tilling_factor) > 1){stop("Tilling factor not unique")}
+  
+  return(tilling_factor)
+  
+}
+
+calc_tilling_impact <- function(tilling_factor = 1, 
+                                all_c){
+  
+  # Take the initial c values
+  c_init <- as_tibble(head(all_c,1))
+  
+  # calculate the difference at each time point from t = 0
+  all_c_diff <- all_c %>% 
+    mutate_if(is.numeric, funs(.-first(.)))
+  
+  all_c_diff <- all_c_diff * tilling_factor
+  
+  all_c_diff <- all_c_diff %>% 
+    mutate(DPM = DPM + c_init$DPM,
+           RPM = RPM + c_init$RPM,
+           BIO = BIO + c_init$BIO,
+           HUM = HUM + c_init$HUM,
+           IOM = IOM + c_init$IOM)
+  
+  return(all_c_diff)
+  
+}
+
+
 plot_c_stocks <- function(years, 
                           df,
                           plot_title = "",
@@ -404,3 +453,5 @@ get_bare_profile <- function(field_parameters){
   
   return(bare_profile)    
 }
+
+
