@@ -84,8 +84,6 @@ for (i in fields){
     field_carbon_in <- field_carbon_inputs$carbon_inputs
     dr_ratios <- field_carbon_inputs$dr_ratio
     
-    # TODO: check the tilling factor for base vs regen and where this is defined. 
-    
     if(case_select == "base"){practice = prev_tilling_practice}else{practice = new_tilling_practice}
     
     tilling_factor <- calc_tilling_factor(climate_zone = climate_zone,
