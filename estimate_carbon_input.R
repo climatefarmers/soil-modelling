@@ -115,7 +115,7 @@ summarise_carbon_inputs <- function(carbon_input_data,
            total_bm = yield_bm + above_ground_bm,
            roots_bm = total_bm * root_shoot_ratio,
            extra_roots_bm = roots_bm * rhizodeposition,
-           total_c_input_tc = (above_ground_bm + roots_bm + extra_roots_bm)/1000) %>% 
+           total_c_input_tc = (above_ground_bm*residue + roots_bm + extra_roots_bm)/1000) %>% 
     mutate(across(contains("year"),
                   ~ case_when(is_crop == "manure" ~ annual_quantity,
                               is_crop == "crop" ~ .x * total_c_input_tc)))
