@@ -205,7 +205,7 @@ calc_tilling_impact <- function(tilling_factor = 1,
 
 
 
-calc_carbon_over_time <- function(time_horison = 10, 
+calc_carbon_over_time <- function(time_horizon = 10, 
                                   field_carbon_in = c(10,10,10,10,10,10,10,10,10,10), # annual input
                                   dr_ratios = c(1,1,1,1,1,1,1,1,1), # annual dr ratio
                                   bare_profile = c(T,T,T,T,T,T,T,T,T,T,T,T), # monthly coverage value
