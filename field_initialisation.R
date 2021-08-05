@@ -71,18 +71,7 @@ for (i in fields){
   climate_zone <- field_parameters$climate_zone[i]
   bare_profile <- get_bare_profile(field_parameters)
   
-  # starting_soil_content_0 <- solve_for_initial_carbon_stocks(
-  #   SOC_target = SOC,
-  #   time_horizon = 100,
-  #   bare = bare_profile,   
-  #   temp = temp,
-  #   precip = precip,
-  #   evap = evap,
-  #   soil_thick = soil_thick,
-  #   clay = clay
-  # )
-  
-  starting_soil_content_0 <- c(1,1,1,1,1)
+  starting_soil_content_0 <- estimate_starting_soil_content(SOC, clay)
   
   for (case_select in c("base", "regen")){
     

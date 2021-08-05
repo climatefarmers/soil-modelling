@@ -139,14 +139,17 @@ get_initial_C <- function(c_df){
 }
 
 estimate_starting_soil_content <- function(
-  SOC = 1
+  SOC = 1,
+  clay = 1
 ){
   
-  factors = c(0.0065, 0.1500, 0.0212, 0.8224)
+  RPM = (0.1847 * SOC + 0.1555)*(clay + 1.2750)^-0.1158 
+  HUM = (0.7148 * SOC + 0.5069)*(clay + 0.3421)^0.0184 
+  BIO = (0.0140 * SOC + 0.0075)*(clay + 8.8473)^0.0567 
+ 
   FallIOM <- 0.049 * SOC^(1.139)
-  rest_soc = SOC - FallIOM
   
-  starting_soc = c(factors * rest_soc, FallIOM)
+  starting_soc = c(0,RPM, HUM, BIO, FallIOM)
   
   return(starting_soc)
   
