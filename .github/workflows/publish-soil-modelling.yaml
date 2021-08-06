@@ -7,6 +7,10 @@ on:
     branches: [ main ]
     paths:
       - .
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .
 
 env:
   IMAGE_NAME: climatefarmers/soil-modelling
