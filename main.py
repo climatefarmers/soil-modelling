@@ -68,6 +68,10 @@ async def rothc_model(params: Params) -> ModelResults:
         'data' : v
     }
 
+@app.get("/health")
+async def healthcheck():
+    return {"status": "alive"}
+
 @app.post("/rothc/initialize/", response_model=ModelResults)
 async def rothc_model(params: InitParams) -> ModelResults:
     with TemporaryDirectory() as temp:
