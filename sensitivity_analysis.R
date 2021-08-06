@@ -21,13 +21,14 @@
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
 
+
 working_dir <- getwd()
 
 source(file.path(working_dir, "model_functions.R"))
 source(file.path(working_dir, "modified_functions.R"))
 
 
-input_file_name <- "test_parameter_file.csv"
+input_file_name <- "test_bare_profile.csv"
 project_name <- gsub(".csv", "",input_file_name)
 
 input_parameters <- read_csv(file.path(working_dir, "parameter_files", input_file_name),
