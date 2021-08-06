@@ -68,6 +68,10 @@ async def rothc_model(params: Params) -> ModelResults:
         'data' : v
     }
 
+@app.get("/")
+async def index():
+    return {"status": "alive"}
+
 @app.get("/health")
 async def healthcheck():
     return {"status": "alive"}
