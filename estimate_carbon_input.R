@@ -24,7 +24,8 @@ clean_crop_variable_data <- function(
   
 }
 
-clear_carbon_input_data <- function(carbon_input_data, crop_data){
+clear_carbon_input_data <- function(carbon_input_data, 
+                                    crop_data){
   
   carbon_input_data$crop <- tolower(carbon_input_data$crop)
   carbon_input_data$case <- tolower(carbon_input_data$case)
@@ -104,6 +105,34 @@ check_field_differences <- function(
 }
 
 
-
+summarise_carbon_inputs <- function(carbon_input_data,
+                                    crop_data){
+  
+  field_crop_data <- carbon_input_data %>% 
+    left_join(crop_data, by = "crop") %>% 
+    mutate(yield_bm = yield * 0.45,
+           above_ground_bm = yield_bm *(1-harvest_index)/harvest_index,
+           total_bm = yield_bm + above_ground_bm,
+           roots_bm = total_bm * root_shoot_ratio,
+           extra_roots_bm = roots_bm * rhizodeposition,
+           total_c_input_tc = (above_ground_bm*residue + roots_bm + extra_roots_bm)/1000) %>% 
+    mutate(across(contains("year"),
+                  ~ case_when(is_crop == "manure" ~ annual_quantity,
+                              is_crop == "crop" ~ .x * total_c_input_tc)))
+  
+  carbon_input_summary <- field_crop_data %>% 
+    pivot_longer(cols = contains("year"), 
+                 names_to = "year",
+                 values_to = "carbon_input") %>% 
+    group_by(field_id, case, is_crop, year) %>%
+    summarise(carbon_input = sum(carbon_input, na.rm = TRUE), .groups = "drop") %>% 
+    ungroup() %>% 
+    mutate(year = as.numeric(gsub("year_", "", year))) %>% 
+    arrange(field_id, case, is_crop, year)
+  
+  carbon_inputs <- combine_crops_fym(carbon_input_summary)
+  
+  return(carbon_inputs)
+}
 
 

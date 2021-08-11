@@ -1,8 +1,5 @@
 # prepare_farm_data
 
-
-# Read in data, calculate base and new carbon inputs per field, run analysis 
-
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma)
 
@@ -11,6 +8,12 @@ working_dir <- getwd()
 source(file.path(working_dir, "model_functions.R"))
 source(file.path(working_dir, "modified_functions.R"))
 source(file.path(working_dir, "estimate_carbon_input.R"))
+source(file.path(working_dir, "plotting_functions.R"))
+
+
+################################################################################
+## Set Up Parameters and Directories for a project
+################################################################################
 
 project_name <- "dobimar"
 
@@ -32,34 +35,6 @@ tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd")
 
 carbon_input_data <- clear_carbon_input_data(carbon_input_data, crop_data) 
 
-# TODO What about portions of residues and roots being left in the ground?
-
-field_crop_data <- carbon_input_data %>% 
-  left_join(crop_data, by = "crop") %>% 
-  mutate(yield_bm = yield * 0.45,
-         above_ground_bm = yield_bm *(1-harvest_index)/harvest_index,
-         total_bm = yield_bm + above_ground_bm,
-         roots_bm = total_bm * root_shoot_ratio,
-         extra_roots_bm = roots_bm * rhizodeposition,
-         total_c_input_tc = (above_ground_bm*residue + roots_bm + extra_roots_bm)/1000) %>% 
-  mutate(across(contains("year"),
-                ~ case_when(is_crop == "manure" ~ annual_quantity,
-                            is_crop == "crop" ~ .x * total_c_input_tc)))
-
-carbon_input_summary <- field_crop_data %>% 
-  pivot_longer(cols = contains("year"), 
-               names_to = "year",
-               values_to = "carbon_input") %>% 
-  group_by(field_id, case, is_crop, year) %>%
-  summarise(carbon_input = sum(carbon_input, na.rm = TRUE), .groups = "drop") %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(gsub("year_", "", year))) %>% 
-  arrange(field_id, case, is_crop, year)
-
-carbon_inputs <- combine_crops_fym(carbon_input_summary)
-
-# Start Calculating field results
-
 farm_location <- unique(field_parameters$location)
 if(length(farm_location) > 1)(stop("Currently only one location is supported per run. "))
 
@@ -70,30 +45,33 @@ evap <- unlist(weather_data["evap",])
 precip <- unlist(weather_data["precip",])
 temp <- unlist(weather_data["temp",])
 
+
+################################################################################
+### Calculate carbon inputs based on parameters
+################################################################################
+
+# TODO What about portions of residues and roots being left in the ground?
+
+carbon_inputs <- summarise_carbon_inputs(carbon_input_data,
+                                         crop_data)
+
+# Start Calculating field results
+
 fields <- unique(field_parameters$field_id)
 
 for (i in fields){
   
-  desc <- field_parameters$desc[i]
   hectares <- field_parameters$hectares[i]
   soil_thick <- field_parameters$soil_thick[i]
   SOC <- field_parameters$SOC[i]
   clay <- field_parameters$clay[i]
   pE <- field_parameters$pE[i]    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
   new_tilling_practice <- field_parameters$new_tilling_practice[i]
+  prev_tilling_practice <- field_parameters$prev_tilling_practice[i]
   climate_zone <- field_parameters$climate_zone[i]
   bare_profile <- get_bare_profile(field_parameters)
   
-  starting_soil_content_0 <- solve_for_initial_carbon_stocks(
-    SOC_target = SOC,
-    time_horizon = 100,
-    bare = bare_profile,   
-    temp = temp,
-    precip = precip,
-    evap = evap,
-    soil_thick = soil_thick,
-    clay = clay
-  )
+  starting_soil_content_0 <- estimate_starting_soil_content(SOC, clay)
   
   for (case_select in c("base", "regen")){
     
@@ -103,46 +81,29 @@ for (i in fields){
     field_carbon_inputs <- carbon_inputs %>% 
       filter(field_id == i, case == case_select)
     
-    time_horizon = max(field_carbon_inputs$year)
+    field_carbon_in <- field_carbon_inputs$carbon_inputs
+    dr_ratios <- field_carbon_inputs$dr_ratio
     
-    for (t in 1: time_horizon){
-      
-      # Runs the model for a single year, taking the inputs from the previous year as the SOC
-      c_df <- calc_soil_carbon(
-        time_horizon = 1,
-        bare = bare_profile, 
-        temp = temp,
-        precip = precip,
-        evap = evap,
-        soil_thick = soil_thick,
-        clay = clay,
-        c_inputs = field_carbon_inputs$carbon_inputs[field_carbon_inputs$year == t],
-        dr_ratio = field_carbon_inputs$dr_ratio[field_carbon_inputs$year == t],
-        pE = pE,
-        PS = starting_soil_content,
-        description = desc,
-        project_name = project_name
-      )
-      
-      # Sets new starting_soil_content
-      starting_soil_content <- as.numeric(tail(c_df, 1))
-      
-      
-      
-      if(t == 1){
-        all_c = c_df
-      }else{
-        all_c <- rbind(all_c, c_df)
-      }
-    }
+    if(case_select == "base"){practice = prev_tilling_practice}else{practice = new_tilling_practice}
     
-    # apply tilling losses
-    tilling_factor <- calc_tilling_factor(starting_soil_content,
-                                          climate_zone = climate_zone,
-                                          new_practice = new_tilling_practice,
+    tilling_factor <- calc_tilling_factor(climate_zone = climate_zone,
+                                          practice = practice,
                                           tilling_factors)
+ 
+    time_horizon = length(field_carbon_in)
     
-    all_c <- calc_tilling_impact(tilling_factor, all_c)
+    all_c <- calc_carbon_over_time(time_horizon,
+                                   field_carbon_in,
+                                   dr_ratios,
+                                   bare_profile,
+                                   temp = temp,
+                                   precip = precip,
+                                   evap = evap,
+                                   soil_thick = soil_thick,
+                                   clay = clay,
+                                   pE = pE,
+                                   PS = starting_soil_content,
+                                   tilling_factor)
     
     years <- get_monthly_dataframe(time_horizon, add_month = F)
     
@@ -150,17 +111,12 @@ for (i in fields){
     
     # Generates and saves output plot
     plot_c_stocks(years, all_c, case_name, project_name)
-    
     plot_total_c(years, all_c, case_name, project_name)
-    
     
     # Calculate final values 
     c_final <- convert_to_tonnes(get_total_C(all_c))
-    
     c_init <- convert_to_tonnes(get_initial_C(all_c))
-    
     stored_carbon <- c_final - c_init
-    
     annual_stored_carbon <- stored_carbon/time_horizon
     
     print(tibble(case_name, c_final, stored_carbon, annual_stored_carbon))
