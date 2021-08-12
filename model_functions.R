@@ -239,11 +239,11 @@ calc_carbon_over_time <- function(time_horizon = 10,
       c_inputs = c_in,
       dr_ratio = dr_in,
       pE = pE,
-      PS = starting_soil_content
+      PS = PS
     )
     
     # Sets new starting_soil_content
-    starting_soil_content <- as.numeric(tail(c_df, 1))
+    PS <- as.numeric(tail(c_df, 1))
     
     if(t == 1){
       all_c = c_df
