@@ -35,7 +35,7 @@ def run_rscript(script, *args):
             *args
         ])
 
-@app.post("/rothc/", response_model=ModelResults)
+@app.post("/api/modelling/rothc/", response_model=ModelResults)
 async def rothc_model(params: Params) -> ModelResults:
     with TemporaryDirectory() as temp:
         with open(os.path.join(temp, 'params.json'), 'w') as f:
