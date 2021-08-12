@@ -18,20 +18,16 @@ get_monthly_dataframe <- function(time_horizon = 10, add_month = T){
   
 }
 
-calc_soil_carbon <- function(
-  time_horizon = 10,
+
+prep_soil_moisture_factor <- function(
+  time_horizon, 
   bare = TRUE,   # This can be a logical, or a string of 12 logicals
   temp = temp,
   precip = precip,
   evap = evap,
   soil_thick = soil_thick,
-  clay = clay,
-  c_inputs = c_inputs,
-  dr_ratio = 1.44,
-  fym_inputs = 0,
-  pE = 1.0,
-  PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
-){
+  clay = clay){
+  
   # Monthly data frame
   years <- get_monthly_dataframe(time_horizon, add_month = F)
   
@@ -62,6 +58,24 @@ calc_soil_carbon <- function(
   
   # Moisture factors over time
   xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
+  
+  return(xi_frame)
+  
+}
+
+
+
+calc_soil_carbon <- function(
+  time_horizon = 10,
+  xi_frame,
+  c_inputs = c_inputs,
+  dr_ratio = 1.44,
+  fym_inputs = 0,
+  pE = 1.0,
+  PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
+){
+  # Monthly data frame
+  years <- get_monthly_dataframe(time_horizon, add_month = F)
   
   # Loads the model
   Model <- RothCModel(
@@ -146,7 +160,7 @@ estimate_starting_soil_content <- function(
   RPM = (0.1847 * SOC + 0.1555)*(clay + 1.2750)^-0.1158 
   HUM = (0.7148 * SOC + 0.5069)*(clay + 0.3421)^0.0184 
   BIO = (0.0140 * SOC + 0.0075)*(clay + 8.8473)^0.0567 
- 
+  
   FallIOM <- 0.049 * SOC^(1.139)
   
   starting_soc = c(0,RPM, HUM, BIO, FallIOM)
@@ -222,6 +236,15 @@ calc_carbon_over_time <- function(time_horizon = 10,
   
   if(length(dr_ratios) != length(field_carbon_in)){stop("Field_carbon_in and dr_ratios should have same length, 1 entry per year")}
   
+  xi_frame <- prep_soil_moisture_factor(
+    time_horizon = 1, 
+    bare = bare_profile,   # This can be a logical, or a string of 12 logicals
+    temp = temp,
+    precip = precip,
+    evap = evap,
+    soil_thick = soil_thick,
+    clay = clay)
+  
   for (t in 1: time_horizon){
     
     c_in <- field_carbon_in[t]
@@ -230,12 +253,7 @@ calc_carbon_over_time <- function(time_horizon = 10,
     # Runs the model for a single year, taking the inputs from the previous year as the SOC
     c_df <- calc_soil_carbon(
       time_horizon = 1,
-      bare = bare_profile, 
-      temp = temp,
-      precip = precip,
-      evap = evap,
-      soil_thick = soil_thick,
-      clay = clay,
+      xi_frame,
       c_inputs = c_in,
       dr_ratio = dr_in,
       pE = pE,
@@ -253,7 +271,7 @@ calc_carbon_over_time <- function(time_horizon = 10,
   }
   
   # apply tilling losses
-
+  
   all_c <- calc_tilling_impact(tilling_factor, all_c)
   
   return(all_c)
