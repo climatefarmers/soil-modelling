@@ -1,4 +1,4 @@
-﻿climate,previous_practice,new_practice,factor
+﻿climate_zone,previous_practice,new_practice,factor
 temperate moist,conventional till,no till,1.16
 temperate moist,conventional till,reduced till,1.09
 temperate moist,conventional till,conventional till,1

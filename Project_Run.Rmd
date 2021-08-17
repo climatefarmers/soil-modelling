@@ -1,0 +1,279 @@
+---
+title: "Soil Carbon Calculations"
+author: "Clare"
+date: "16/08/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma, jsonlite)
+
+working_dir <- getwd()
+
+source(file.path(working_dir, "model_functions.R"))
+source(file.path(working_dir, "estimate_carbon_input.R"))
+source(file.path(working_dir, "uncertainty_functions.R"))
+
+
+crop_data <- clean_crop_variable_data(crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd"))
+tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd") 
+
+```
+
+## Inputs
+
+There are various inputs you need to specify. The following code calculates the minimum and maximum expected results with a 90% confidence interval. The variables tested here include the soil organic carbon, soil clay content and the yield. These need to be calculated and then the yield values returned to the parameter file. 
+
+```{r inputs_uncertainty_analysis}
+
+# Add in the values obtained from the soil lab
+# These values are added automatically to the uncertainty analysis
+soc_samples <- c(40, 42, 45, 58, 41)
+clay_samples <- c(20, 32, 18, 42, 36)
+
+clay_bounds <- calculate_confidence_interval(clay_samples)
+soc_bounds <- calculate_confidence_interval(soc_samples)
+
+mean_clay <- mean(clay_samples)
+mean_soc <- mean(soc_samples)
+
+# Add additional yields as necessary
+# Convert the values to kg/ha
+yield_rape <- c(51.15, 42.01, 32.9, 36.04)*.1*1000 
+yield_wheat <- c(98.02, 85.87, 92.71, 78.23, 67.55)*.1*1000
+
+# Add the following to the carbon_inputs csv file
+# These represent the minimum, maximum expected values within a 90% confidence interval
+yield_rape_bounds <- calculate_confidence_interval(yield_rape)
+yield_wheat_bounds <- calculate_confidence_interval(yield_wheat)
+
+# Also add these values to the carbon_inputs csv file 
+mean_rape <- mean(yield_rape)
+mean_wheat <- mean(yield_wheat)
+
+
+
+```
+
+
+## Project Parameters
+
+Within the parameter_file folder, you should create parameter files for the field and carbon inputs, representing the holistic management practices expected over the next 10 years. 
+
+
+```{r parameters}
+
+# Set the project name
+project_name <- "dobimar"
+farm_location <- "Schwerin"
+
+if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
+if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+
+weather_data <- read.csv(paste0("data/weather_average/",tolower(farm_location),"_uncertainty.csv"))
+
+field_parameters <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_field_parameters.csv")),
+                             col_types = "dcccdddddcllllllllllll")
+
+field_parameters$climate_zone <- tolower(field_parameters$climate_zone)
+
+field_parameters <-  field_parameters %>% 
+  left_join(tilling_factors, by = c("climate_zone", "tilling" = "new_practice")) %>% 
+  rename(tilling_factor = factor)
+
+field_parameters <- get_bare_profile_df(field_parameters)
+
+
+carbon_input_data <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_carbon_inputs.csv")),
+                              col_types = "dccddddddddddddddd") 
+
+check_field_differences(field_parameters, carbon_input_data)
+
+carbon_input_data <- clean_carbon_input_data(carbon_input_data, crop_data) 
+
+carbon_inputs <- summarise_carbon_inputs(carbon_input_data,
+                                         crop_data)
+
+fields <- carbon_inputs %>% select(field_id, case) %>% distinct()
+
+uncertainty_list <- expand.grid(
+  "field_id" = unique(fields$field_id),
+  "case" = unique(fields$case),
+  "clay" = clay_bounds,
+  "soc" = soc_bounds,
+  "carbon_inputs" = c("min_yield", "max_yield"),
+  "evap" = c("min_evap", "max_evap"),
+  "temp" = c("min_temp", "max_temp"),
+  "precip" = c("min_precip", "max_precip")
+)  
+
+uncertainty_list <- uncertainty_list %>% 
+  left_join(field_parameters %>% select(field_id, case, tilling_factor, bare_profile), by = c("field_id", "case")) %>% 
+  mutate(label = 1:nrow(uncertainty_list))
+
+```
+
+
+The uncertainty list was prepared in the previous step. We need to run through this to generate all results. 
+
+
+```{r prep_remaining_variables}
+
+# Constant variables
+hectares <- 72
+soil_thick <- 25
+pE <- 1    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
+time_horizon <- 10
+field_id <- 1
+
+
+for (i in 1:nrow(uncertainty_list)){
+  
+  # Set parameters
+  label <- uncertainty_list$label[i]
+  case <- uncertainty_list$case[i]
+  soc <- uncertainty_list$soc[i]
+  clay <- uncertainty_list$clay[i]
+  tilling_factor <- uncertainty_list$tilling_factor[i]
+  bare_profile <- uncertainty_list$bare_profile[i]
+  
+  starting_soil_content <- estimate_starting_soil_content(soc, clay)
+  
+  field_carbon_in <- carbon_inputs %>% 
+    filter(name == uncertainty_list$carbon_inputs[i],
+           case == !!case,
+           field_id == !!field_id) %>% 
+    select(carbon_inputs) %>% pull()
+  
+  dr_ratios <- carbon_inputs %>% 
+    filter(name == uncertainty_list$carbon_inputs[i],
+           case == !!case,
+           field_id == !!field_id) %>% 
+    select(dr_ratio) %>% pull()
+  
+  temp <- weather_data %>% select(uncertainty_list$temp[i]) %>% pull()
+  precip <- weather_data %>% select(uncertainty_list$precip[i]) %>% pull()
+  evap <- weather_data %>% select(uncertainty_list$evap[i]) %>% pull()
+  
+  all_c <- calc_carbon_over_time(time_horizon,
+                                 field_carbon_in,
+                                 dr_ratios,
+                                 bare_profile,
+                                 temp = temp,
+                                 precip = precip,
+                                 evap = evap,
+                                 soil_thick = soil_thick,
+                                 clay = clay,
+                                 pE = pE,
+                                 PS = starting_soil_content,
+                                 tilling_factor)
+  
+  if (label == 1){
+    all_results <- data.frame(V1 = all_c$TOT)
+    }else{
+    all_results[label] <- all_c$TOT
+  }
+  
+  
+}
+
+
+```
+
+
+```{r mean_run}
+
+
+# Set parameters
+case_list <- field_parameters$case
+
+for(case in case_list){
+  soc <- mean_soc
+  clay <- mean_clay
+  tilling_factor <- field_parameters$tilling_factor[field_parameters$case == case]
+  bare_profile <- field_parameters$bare_profile[field_parameters$case == case]
+  
+  starting_soil_content <- estimate_starting_soil_content(soc, clay)
+  
+  field_carbon_in <- carbon_inputs %>% 
+    filter(name == "mean_yield",
+           case == !!case,
+           field_id == !!field_id) %>% 
+    select(carbon_inputs) %>% pull()
+  
+  dr_ratios <- carbon_inputs %>% 
+    filter(name == "mean_yield",
+           case == !!case,
+           field_id == !!field_id) %>% 
+    select(dr_ratio) %>% pull()
+  
+  temp <- weather_data %>% select(mean_temp) %>% pull()
+  precip <- weather_data %>% select(mean_precip) %>% pull()
+  evap <- weather_data %>% select(mean_evap) %>% pull()
+  
+  all_c <- calc_carbon_over_time(time_horizon,
+                                 field_carbon_in,
+                                 dr_ratios,
+                                 bare_profile,
+                                 temp = temp,
+                                 precip = precip,
+                                 evap = evap,
+                                 soil_thick = soil_thick,
+                                 clay = clay,
+                                 pE = pE,
+                                 PS = starting_soil_content,
+                                 tilling_factor)
+  
+  
+  
+  if (case == "base"){
+    all_results["base"] <- all_c$TOT
+    }else if (case == "regen"){
+    all_results["regen"] <- all_c$TOT
+  }
+  
+}
+
+```
+
+
+```{r plot_results}
+
+all_results$time <- 1:nrow(all_results)/12
+all_results_long <- pivot_longer(all_results ,  cols = contains("V"))
+
+ggplot(all_results_long, aes(x = time, y = value)) + 
+  geom_line(aes(colour = name))+ 
+  scale_x_continuous(expand = c(0, 0)) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(x = "Year", y = "Total Soil Carbon", title = "All Trajectories")
+
+
+```
+
+```{r plot_time}
+
+all_results_time <- all_results_long %>% 
+  group_by(time) %>% 
+  summarise(max_val = max(value),
+            min_val = min(value), 
+            .groups = "drop") %>% 
+  left_join(all_results %>% select(time, base, regen), by = "time")
+
+
+ggplot(all_results_time)+
+  geom_ribbon(aes(x = time, ymin = min_val, ymax = max_val), fill = "cornsilk")+
+  geom_line(aes(x = time, y = base, colour = "black")) +
+  geom_line(aes(x = time, y = regen, colour = "darkgreen"))+
+  scale_x_continuous(expand = c(0, 0)) +
+  theme_classic()+
+  theme(legend.position = "right")+
+  scale_colour_manual(name  ="Case",
+                      labels = c("Base", "Regen"),
+                      values=c("black", "darkgreen")) +
+  labs(x = "Year", y = "Total Soil Carbon", title = "Mean Result + Uncertainty Band")
+
+```
+

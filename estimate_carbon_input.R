@@ -24,8 +24,10 @@ clean_crop_variable_data <- function(
   
 }
 
-clear_carbon_input_data <- function(carbon_input_data, 
-                                    crop_data){
+clean_carbon_input_data <- function(
+  carbon_input_data, 
+  crop_data
+){
   
   carbon_input_data$crop <- tolower(carbon_input_data$crop)
   carbon_input_data$case <- tolower(carbon_input_data$case)
@@ -63,29 +65,6 @@ clear_carbon_input_data <- function(carbon_input_data,
   
 }
 
-calculate_carbon_input <- function(
-  dry_yield = 1000,          # t/ha/year
-  residue_remaining = 0.25,  # 0 - 1 with 1 meaning all residue left on ground
-  harvest_index = 0.5,       # from the crop_data file
-  root_to_shoot_ratio = 0.18,# from the crop_data file
-  rhizo_ratio = 0.65         # Bolinder number
-){
-  
-  yield_bm <- (dry_yield*0.45)
-  above_ground_bm <- yield_bm *(1-harvest_index)/harvest_index
-  total_bm <- yield_bm + above_ground_bm
-  roots_bm <- total_bm * root_to_shoot_ratio
-  extra_roots_bm <- roots_bm * rhizo_ratio
-  
-  
-  total_c_input <- above_ground_bm + roots_bm + extra_roots_bm
-  # kg C / ha
-  total_c_input_tc <- total_c_input /1000
-  
-  return(total_c_input_tc)
-  
-}
-
 
 check_field_differences <- function(
   field_parameters, 
@@ -104,12 +83,14 @@ check_field_differences <- function(
   
 }
 
-
-summarise_carbon_inputs <- function(carbon_input_data,
-                                    crop_data){
+summarise_carbon_inputs <- function(
+  carbon_input_data,
+  crop_data
+){
   
   field_crop_data <- carbon_input_data %>% 
     left_join(crop_data, by = "crop") %>% 
+    pivot_longer(contains("yield"), values_to = "yield") %>% 
     mutate(yield_bm = yield * 0.45,
            above_ground_bm = yield_bm *(1-harvest_index)/harvest_index,
            total_bm = yield_bm + above_ground_bm,
@@ -124,15 +105,33 @@ summarise_carbon_inputs <- function(carbon_input_data,
     pivot_longer(cols = contains("year"), 
                  names_to = "year",
                  values_to = "carbon_input") %>% 
-    group_by(field_id, case, is_crop, year) %>%
+    group_by(field_id, case, is_crop, name, year) %>%
     summarise(carbon_input = sum(carbon_input, na.rm = TRUE), .groups = "drop") %>% 
     ungroup() %>% 
     mutate(year = as.numeric(gsub("year_", "", year))) %>% 
-    arrange(field_id, case, is_crop, year)
+    arrange(field_id, case, name, is_crop, year)
   
   carbon_inputs <- combine_crops_fym(carbon_input_summary)
   
   return(carbon_inputs)
 }
 
+combine_crops_fym <- function(
+  carbon_input_summary, 
+  dr_ratio_crops = 1.44,
+  dr_ratio_fym = 1
+){
+  
+  field_carbon_inputs <- carbon_input_summary %>% 
+    mutate(c_in = 
+             case_when(
+               is_crop == "crop" ~ carbon_input * dr_ratio_crops,
+               is_crop == "manure" ~ carbon_input * dr_ratio_fym
+             )) %>% 
+    group_by(field_id, case,name, year) %>% 
+    summarise(carbon_inputs = sum(carbon_input, na.rm = T), 
+              dr_ratio = sum(c_in, na.rm = T)/sum(carbon_input, na.rm = T), .groups = "drop") 
+  
+  return(field_carbon_inputs)
+}
 
