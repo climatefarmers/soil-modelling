@@ -282,7 +282,7 @@ get_bare_profile <- function(field_parameters){
   
   # input_parameters should be a single line of the input_parameter file
   
-  ip0 <- field_parameters[i,] %>% select(contains("bare_profile"))
+  ip0 <- field_parameters %>% select(contains("bare_profile"))
   
   if(ncol(ip0) != 12){stop("Missing information about the bare profile months. ")}
   
