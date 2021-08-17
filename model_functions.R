@@ -251,7 +251,6 @@ calc_carbon_over_time <- function(time_horizon = 10,
   }
   
   # apply tilling losses
-  
   all_c <- calc_tilling_impact(tilling_factor, all_c)
   
   all_c <- all_c %>% rowwise() %>% mutate(TOT = sum(DPM, RPM, BIO, HUM, IOM))
