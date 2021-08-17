@@ -27,6 +27,19 @@ There are various inputs you need to specify. The following code calculates the 
 
 ```{r inputs_uncertainty_analysis}
 
+# Set the project name, and the farm location - this must be the same name as a local weather station
+# TODO: get Tim's code to locate the closest weather station 
+project_name <- "dobimar"
+farm_location <- "Schwerin"
+
+# Constant variables
+# Set these once here. 
+hectares <- 72
+soil_thick <- 25
+pE <- 1    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
+time_horizon <- 10
+field_id <- 1 # If more than one field, need to update code. 
+
 # Add in the values obtained from the soil lab
 # These values are added automatically to the uncertainty analysis
 soc_samples <- c(40, 42, 45, 58, 41)
@@ -53,20 +66,15 @@ mean_rape <- mean(yield_rape)
 mean_wheat <- mean(yield_wheat)
 
 
-
 ```
 
 
-## Project Parameters
+## Project Parameters and running Results
 
 Within the parameter_file folder, you should create parameter files for the field and carbon inputs, representing the holistic management practices expected over the next 10 years. 
 
 
-```{r parameters}
-
-# Set the project name
-project_name <- "dobimar"
-farm_location <- "Schwerin"
+```{r parameters, echo=FALSE}
 
 if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
 if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
@@ -118,14 +126,7 @@ uncertainty_list <- uncertainty_list %>%
 The uncertainty list was prepared in the previous step. We need to run through this to generate all results. 
 
 
-```{r prep_remaining_variables}
-
-# Constant variables
-hectares <- 72
-soil_thick <- 25
-pE <- 1    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
-time_horizon <- 10
-field_id <- 1
+```{r prep_remaining_variables, echo=FALSE}
 
 
 for (i in 1:nrow(uncertainty_list)){
@@ -182,7 +183,7 @@ for (i in 1:nrow(uncertainty_list)){
 ```
 
 
-```{r mean_run}
+```{r mean_run, echo=FALSE}
 
 
 # Set parameters
@@ -238,7 +239,7 @@ for(case in case_list){
 ```
 
 
-```{r plot_results}
+```{r plot_results, echo=FALSE}
 
 all_results$time <- 1:nrow(all_results)/12
 all_results_long <- pivot_longer(all_results ,  cols = contains("V"))
@@ -253,7 +254,7 @@ ggplot(all_results_long, aes(x = time, y = value)) +
 
 ```
 
-```{r plot_time}
+```{r plot_time, echo=FALSE}
 
 all_results_time <- all_results_long %>% 
   group_by(time) %>% 
