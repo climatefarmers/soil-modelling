@@ -10,14 +10,14 @@ convert_to_tonnes <- function(value,
   
 }
 
-get_monthly_dataframe <- function(time_horizon = 10, add_month = T){
+get_monthly_dataframe <- function(time_horizon = 10, 
+                                  add_month = T){
   
   years <- seq(1/12, time_horizon+1/12, by = 1/12)
   
   if (add_month == F){  years <- seq(1/12, time_horizon, by = 1/12)}
   
 }
-
 
 prep_soil_moisture_factor <- function(
   time_horizon, 
@@ -63,8 +63,6 @@ prep_soil_moisture_factor <- function(
   
 }
 
-
-
 calc_soil_carbon <- function(
   time_horizon = 10,
   xi_frame,
@@ -96,25 +94,6 @@ calc_soil_carbon <- function(
   
   return(c_t)
   
-}
-
-combine_crops_fym <- function(
-  carbon_input_summary, 
-  dr_ratio_crops = 1.44,
-  dr_ratio_fym = 1
-){
-  
-  field_carbon_inputs <- carbon_input_summary %>% 
-    mutate(c_in = 
-             case_when(
-               is_crop == "crop" ~ carbon_input * dr_ratio_crops,
-               is_crop == "manure" ~ carbon_input * dr_ratio_fym
-             )) %>% 
-    group_by(field_id, case, year) %>% 
-    summarise(carbon_inputs = sum(carbon_input, na.rm = T), 
-              dr_ratio = sum(c_in, na.rm = T)/sum(carbon_input, na.rm = T), .groups = "drop") 
-  
-  return(field_carbon_inputs)
 }
 
 normalise_c_inputs <- function(
@@ -193,6 +172,7 @@ calc_tilling_factor <- function(
   return(tilling_factor)
   
 }
+
 
 calc_tilling_impact <- function(tilling_factor = 1, 
                                 all_c){
@@ -274,11 +254,13 @@ calc_carbon_over_time <- function(time_horizon = 10,
   
   all_c <- calc_tilling_impact(tilling_factor, all_c)
   
+  all_c <- all_c %>% rowwise() %>% mutate(TOT = sum(DPM, RPM, BIO, HUM, IOM))
+  
   return(all_c)
 }
 
 
-get_bare_profile <- function(field_parameters){
+get_bare_profile_single <- function(field_parameters){
   
   # input_parameters should be a single line of the input_parameter file
   
@@ -289,6 +271,20 @@ get_bare_profile <- function(field_parameters){
   bare_profile <- as.data.frame(t(ip0))$V1
   
   return(bare_profile)    
+}
+
+get_bare_profile_df <- function(field_parameters){
+  
+  ip <- field_parameters %>% 
+    select(contains("bare_profile")) 
+  
+  bare_profile <- do.call(paste, c(ip[], sep = ", ")) 
+  
+  field_parameters <- field_parameters %>% 
+    select(!contains("bare_profile")) %>% 
+    cbind(bare_profile)
+  
+  return(field_parameters)
 }
 
 
