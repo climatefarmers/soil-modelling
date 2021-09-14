@@ -1,9 +1,0 @@
-desc,location,crop,temp_adjustment,soil_thick,SOC,clay,c_inputs,pE,bare,time_horizon
-"Bare, No CC",Lindenberg,Sorghum,0,25,39,18,7.56,1,TRUE,10
-"Covered, No CC",Lindenberg,Sorghum,0,25,39,18,7.56,1,FALSE,10
-"Bare, No CC, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,TRUE,10
-"Covered, No CC, Fine Soil",Lindenberg,Sorghum,0,20,39,18,7.56,1,FALSE,10
-"Bare, CC",Lindenberg,Sorghum,1,25,39,18,7.56,1,TRUE,10
-"Covered, CC",Lindenberg,Sorghum,1,25,39,18,7.56,1,FALSE,10
-"Bare, CC, Fine Soil",Lindenberg,Sorghum,1,20,39,18,7.56,1,TRUE,10
-"Covered, CC, Fine Soil",Lindenberg,Sorghum,1,20,39,18,7.56,1,FALSE,10
