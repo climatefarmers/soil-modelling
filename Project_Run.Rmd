@@ -5,7 +5,7 @@ date: "16/08/2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE, echo=FALSE}
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE}
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma, jsonlite)
 
@@ -25,7 +25,7 @@ tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd")
 
 There are various inputs you need to specify. The following code calculates the minimum and maximum expected results with a 90% confidence interval. The variables tested here include the soil organic carbon, soil clay content and the yield. These need to be calculated and then the yield values returned to the parameter file. 
 
-```{r inputs_uncertainty_analysis}
+```{r inputs_uncertainty_analysis, echo=FALSE, warning=FALSE}
 
 # Set the project name, and the farm location - this must be the same name as a local weather station
 # TODO: get Tim's code to locate the closest weather station 
@@ -74,7 +74,7 @@ mean_wheat <- mean(yield_wheat)
 Within the parameter_file folder, you should create parameter files for the field and carbon inputs, representing the holistic management practices expected over the next 10 years. 
 
 
-```{r parameters, echo=FALSE}
+```{r parameters, echo=FALSE, warning=FALSE}
 
 if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
 if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
@@ -126,7 +126,7 @@ uncertainty_list <- uncertainty_list %>%
 The uncertainty list was prepared in the previous step. We need to run through this to generate all results. 
 
 
-```{r prep_remaining_variables, echo=FALSE}
+```{r prep_remaining_variables, echo=FALSE, warning=FALSE}
 
 
 for (i in 1:nrow(uncertainty_list)){
@@ -183,7 +183,7 @@ for (i in 1:nrow(uncertainty_list)){
 ```
 
 
-```{r mean_run, echo=FALSE}
+```{r mean_run, echo=FALSE, warning=FALSE}
 
 
 # Set parameters
@@ -239,7 +239,7 @@ for(case in case_list){
 ```
 
 
-```{r plot_results, echo=FALSE}
+```{r plot_results, echo=FALSE, warning=FALSE}
 
 all_results$time <- 1:nrow(all_results)/12
 all_results_long <- pivot_longer(all_results ,  cols = contains("V"))
@@ -254,7 +254,7 @@ ggplot(all_results_long, aes(x = time, y = value)) +
 
 ```
 
-```{r plot_time, echo=FALSE}
+```{r plot_time, echo=FALSE, warning=FALSE}
 
 all_results_time <- all_results_long %>% 
   group_by(time) %>% 
