@@ -5,9 +5,9 @@ date: "16/08/2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE, echo=FALSE}
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE}
 if (!require("pacman")) install.packages("pacman"); library(pacman)
-p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma, jsonlite)
+p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma, jsonlite, kableExtra)
 
 working_dir <- getwd()
 
@@ -25,7 +25,7 @@ tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd")
 
 There are various inputs you need to specify. The following code calculates the minimum and maximum expected results with a 90% confidence interval. The variables tested here include the soil organic carbon, soil clay content and the yield. These need to be calculated and then the yield values returned to the parameter file. 
 
-```{r inputs_uncertainty_analysis}
+```{r inputs_uncertainty_analysis, echo=FALSE, warning=FALSE}
 
 # Set the project name, and the farm location - this must be the same name as a local weather station
 # TODO: get Tim's code to locate the closest weather station 
@@ -42,14 +42,19 @@ field_id <- 1 # If more than one field, need to update code.
 
 # Add in the values obtained from the soil lab
 # These values are added automatically to the uncertainty analysis
-soc_samples <- c(40, 42, 45, 58, 41)
-clay_samples <- c(20, 32, 18, 42, 36)
+# soc_samples <- c(34.62, 34.21, 34.51, 28.17, 31.20)
+soc_perc <- c(1.1, 1.1, 1.1, 0.9, 1) # %
+clay_samples <- c(17, 6, 11, 9, 9) # %
+bulk_density_samples <- c(1259, 1244, 1255, 1252, 1248) #kg/m3
+
+soc_stock <- soil_thick/100 * soc_perc/100 * bulk_density_samples * 10000/1000 # tC/ha
 
 clay_bounds <- calculate_confidence_interval(clay_samples)
-soc_bounds <- calculate_confidence_interval(soc_samples)
+soc_bounds <- calculate_confidence_interval(soc_stock)
 
+mean_soc_perc <- mean(soc_perc)
 mean_clay <- mean(clay_samples)
-mean_soc <- mean(soc_samples)
+mean_soc <- mean(soc_stock)
 
 # Add additional yields as necessary
 # Convert the values to kg/ha
@@ -65,16 +70,24 @@ yield_wheat_bounds <- calculate_confidence_interval(yield_wheat)
 mean_rape <- mean(yield_rape)
 mean_wheat <- mean(yield_wheat)
 
+inputs_table <- c("Project Name " = project_name,
+                  "Project Location" = farm_location,
+                  "Field Size" = hectares,
+                  "Analysis Time Horizon" = paste0(time_horizon, " years"),
+                  "Average starting SOC %" = paste0(mean_soc_perc, " %"),
+                  "Average starting SOC" = paste0(round(mean_soc,1), " tC/ha"),
+                  "Average clay content" = paste0(mean_clay, " %"))
+
+inputs_table %>% kable(caption = "Project Input Parameters") %>% kable_styling()
 
 ```
 
 
-## Project Parameters and running Results
+## Project Parameters
 
 Within the parameter_file folder, you should create parameter files for the field and carbon inputs, representing the holistic management practices expected over the next 10 years. 
 
-
-```{r parameters, echo=FALSE}
+```{r parameters, echo=FALSE, warning=FALSE}
 
 if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
 if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
@@ -122,11 +135,65 @@ uncertainty_list <- uncertainty_list %>%
 
 ```
 
+The following table represents the holistic practices incorporated in this analysis
+```{r, echo=FALSE, warning=FALSE}
+crops <- carbon_input_data %>% filter(crop != "manure") %>% 
+  select(case,crop, residue, contains("year")) %>% 
+  mutate(residue = residue *100)
 
-The uncertainty list was prepared in the previous step. We need to run through this to generate all results. 
+
+crops %>%  kable(col.names = c("Case",  "Crop", "% Residue Left", paste("Year", 1:10))) %>%  kable_styling()
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+
+manure <- carbon_input_data %>% filter(crop == "manure") %>% select(case, annual_quantity)
+
+manure %>% kable( col.names = c("Case","Manure Applied")) %>% 
+  kable_styling()
 
 
-```{r prep_remaining_variables, echo=FALSE}
+```
+
+```{r, echo=FALSE, warning=FALSE}
+
+tilling <- field_parameters %>% select(case, tilling)
+
+
+tilling %>% 
+  kable(col.names = c("Case", "Tilling Method")) %>% 
+  kable_styling()
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+
+base_profile <- field_parameters %>% select(case, bare_profile) %>% 
+  separate(bare_profile,  c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+
+base_profile %>% 
+  rename(Case = "case") %>% 
+  mutate(Jan = cell_spec(Jan, background = ifelse(Jan == TRUE, "green", "brown")),
+         Feb = cell_spec(Feb, background = ifelse(Feb == TRUE, "green", "brown")),
+         Mar = cell_spec(Mar, background = ifelse(Mar == TRUE, "green", "brown")),
+         Apr = cell_spec(Apr, background = ifelse(Apr == TRUE, "green", "brown")),
+         May = cell_spec(May, background = ifelse(May == TRUE, "green", "brown")),
+         Jun = cell_spec(Jun, background = ifelse(Jun == TRUE, "green", "brown")),
+         Jul = cell_spec(Jul, background = ifelse(Jul == TRUE, "green", "brown")),
+         Aug = cell_spec(Aug, background = ifelse(Aug == TRUE, "green", "brown")),
+         Sep = cell_spec(Sep, background = ifelse(Sep == TRUE, "green", "brown")),
+         Oct = cell_spec(Oct, background = ifelse(Oct == TRUE, "green", "brown")),
+         Nov = cell_spec(Nov, background = ifelse(Nov == TRUE, "green", "brown")),
+         Dec = cell_spec(Dec, background = ifelse(Dec == TRUE, "green", "brown"))) %>% 
+  kable(escape = F) %>% 
+  kable_styling()
+
+
+```
+
+```{r create_results, echo=FALSE, warning=FALSE}
 
 
 for (i in 1:nrow(uncertainty_list)){
@@ -172,18 +239,12 @@ for (i in 1:nrow(uncertainty_list)){
   
   if (label == 1){
     all_results <- data.frame(V1 = all_c$TOT)
-    }else{
+  }else{
     all_results[label] <- all_c$TOT
   }
   
   
 }
-
-
-```
-
-
-```{r mean_run, echo=FALSE}
 
 
 # Set parameters
@@ -230,7 +291,7 @@ for(case in case_list){
   
   if (case == "base"){
     all_results["base"] <- all_c$TOT
-    }else if (case == "regen"){
+  }else if (case == "regen"){
     all_results["regen"] <- all_c$TOT
   }
   
@@ -238,32 +299,55 @@ for(case in case_list){
 
 ```
 
+## Results
 
-```{r plot_results, echo=FALSE}
+The following table is a summary of the main changes in values for both the base (business as usual) case and the regenerative case. The variance value represents the maximum % difference between the maximum value  expected with a 90% confidence interval and the regen case results. 
+
+```{r, echo=FALSE, warning=FALSE}
+## Results summary
+
 
 all_results$time <- 1:nrow(all_results)/12
 all_results_long <- pivot_longer(all_results ,  cols = contains("V"))
 
-ggplot(all_results_long, aes(x = time, y = value)) + 
-  geom_line(aes(colour = name))+ 
-  scale_x_continuous(expand = c(0, 0)) +
-  theme_classic()+
-  theme(legend.position = "none")+
-  labs(x = "Year", y = "Total Soil Carbon", title = "All Trajectories")
-
-
-```
-
-```{r plot_time, echo=FALSE}
 
 all_results_time <- all_results_long %>% 
   group_by(time) %>% 
   summarise(max_val = max(value),
             min_val = min(value), 
             .groups = "drop") %>% 
-  left_join(all_results %>% select(time, base, regen), by = "time")
+  left_join(all_results %>% select(time, base, regen), by = "time") %>% 
+  mutate(var_max = (max_val - regen)/regen,
+         var_min = (min_val - regen)/regen)
+
+res_start <- head(all_results_time, 1)
+res_end <- tail(all_results_time, 1)
+
+baseline_change <- res_end$base - res_start$base
+baseline_change_perc <- ((res_end$base - res_start$base)/res_start$base)*100
+regen_change <- res_end$regen - res_start$regen
+regen_change_perc <- ((res_end$regen - res_start$regen)/res_start$regen)*100
 
 
+variance_upper <- res_end$var_max * 100
+variance_lower <- res_end$var_min * 100
+
+res <- c("Final SOC Base" =  paste0(round(res_end$base, 1), " tC/ha"),
+         "Final SOC Regen" =  paste0(round(res_end$regen, 1), " tC/ha"),
+         "Absolute change Base" = paste0(round(baseline_change, 1), " tC/ha"),
+         "Percent change Base" = paste0(round(baseline_change_perc, 1), " %"),
+         "Absolute change Regen" = paste0(round(regen_change, 1), " tC/ha"),
+         "Percent change Regen" = paste0(round(regen_change_perc, 1), " %"),
+         "Max positive variance" = paste0(round(variance_upper, 1), " %"),
+         "Max negative variance" = paste0(round(variance_lower, 1), " %"))
+
+res %>% kable(caption = "Summary of Results") %>% kable_styling()
+
+```
+
+The following plot shows all possible trajectories of soil carbon development possible with variables within a 90% confidence interval. Ie. All possible cases have been run in which the minimum and maximum values of the clay, soil organic carbon (SOC), and carbon inputs were considered. The 90% confidence interval for monthly values for evaporation, temperature and precipitation was also varied.    
+
+```{r, echo=FALSE, warning=FALSE}
 ggplot(all_results_time)+
   geom_ribbon(aes(x = time, ymin = min_val, ymax = max_val), fill = "cornsilk")+
   geom_line(aes(x = time, y = base, colour = "black")) +
@@ -276,5 +360,13 @@ ggplot(all_results_time)+
                       values=c("black", "darkgreen")) +
   labs(x = "Year", y = "Total Soil Carbon", title = "Mean Result + Uncertainty Band")
 
+ggplot(all_results_long, aes(x = time, y = value)) + 
+  geom_line(aes(colour = name))+ 
+  scale_x_continuous(expand = c(0, 0)) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(x = "Year", y = "Total Soil Carbon", title = "All Trajectories")
+
 ```
+
 
