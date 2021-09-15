@@ -135,7 +135,15 @@ uncertainty_list <- uncertainty_list %>%
 
 ```
 
-The following table represents the holistic practices incorporated in this analysis
+The following table represents the holistic practices incorporated in this analysis. 
+
+Important to note - the main parameters that can be added to reflect holistic practices currently include:
+- Changes in Crop rotations, residue left of field and theoretically expected yields (currently just historic)
+- Change in tilling practices: Conventional -> Reduced -> No till
+- Additional Manure (no other fertilizer changes are reflected in the R model - only the LCA)
+- Cover crop impact on bare soil vs covered soil (no additional Carbon inputs can be calculated at the moment)
+
+Further research needs to be undertaken to better reflect any additional impacts that are expected. 
 ```{r, echo=FALSE, warning=FALSE}
 crops <- carbon_input_data %>% filter(crop != "manure") %>% 
   select(case,crop, residue, contains("year")) %>% 
