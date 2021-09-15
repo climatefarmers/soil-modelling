@@ -347,7 +347,7 @@ res %>% kable(caption = "Summary of Results") %>% kable_styling()
 
 The following plot shows all possible trajectories of soil carbon development possible with variables within a 90% confidence interval. Ie. All possible cases have been run in which the minimum and maximum values of the clay, soil organic carbon (SOC), and carbon inputs were considered. The 90% confidence interval for monthly values for evaporation, temperature and precipitation was also varied.    
 
-```{r}
+```{r, echo=FALSE, warning=FALSE}
 ggplot(all_results_long, aes(x = time, y = value)) + 
   geom_line(aes(colour = name))+ 
   scale_x_continuous(expand = c(0, 0)) +
