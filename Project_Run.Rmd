@@ -75,7 +75,7 @@ inputs_table <- c("Project Name " = project_name,
                   "Field Size" = hectares,
                   "Analysis Time Horizon" = paste0(time_horizon, " years"),
                   "Average starting SOC %" = paste0(mean_soc_perc, " %"),
-                  "Average starting SOC" = paste0(mean_soc, " tC/ha"),
+                  "Average starting SOC" = paste0(round(mean_soc,1), " tC/ha"),
                   "Average clay content" = paste0(mean_clay, " %"))
 
 inputs_table %>% kable(caption = "Project Input Parameters") %>% kable_styling()
@@ -348,14 +348,6 @@ res %>% kable(caption = "Summary of Results") %>% kable_styling()
 The following plot shows all possible trajectories of soil carbon development possible with variables within a 90% confidence interval. Ie. All possible cases have been run in which the minimum and maximum values of the clay, soil organic carbon (SOC), and carbon inputs were considered. The 90% confidence interval for monthly values for evaporation, temperature and precipitation was also varied.    
 
 ```{r, echo=FALSE, warning=FALSE}
-ggplot(all_results_long, aes(x = time, y = value)) + 
-  geom_line(aes(colour = name))+ 
-  scale_x_continuous(expand = c(0, 0)) +
-  theme_classic()+
-  theme(legend.position = "none")+
-  labs(x = "Year", y = "Total Soil Carbon", title = "All Trajectories")
-
-
 ggplot(all_results_time)+
   geom_ribbon(aes(x = time, ymin = min_val, ymax = max_val), fill = "cornsilk")+
   geom_line(aes(x = time, y = base, colour = "black")) +
@@ -368,5 +360,13 @@ ggplot(all_results_time)+
                       values=c("black", "darkgreen")) +
   labs(x = "Year", y = "Total Soil Carbon", title = "Mean Result + Uncertainty Band")
 
+ggplot(all_results_long, aes(x = time, y = value)) + 
+  geom_line(aes(colour = name))+ 
+  scale_x_continuous(expand = c(0, 0)) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(x = "Year", y = "Total Soil Carbon", title = "All Trajectories")
+
 ```
+
 
