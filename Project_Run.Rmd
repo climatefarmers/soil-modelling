@@ -336,11 +336,13 @@ baseline_change_perc <- ((res_end$base - res_start$base)/res_start$base)*100
 regen_change <- res_end$regen - res_start$regen
 regen_change_perc <- ((res_end$regen - res_start$regen)/res_start$regen)*100
 
+relative_change <- res_end$regen - res_end$base
 
 variance_upper <- res_end$var_max * 100
 variance_lower <- res_end$var_min * 100
 
-res <- c("Final SOC Base" =  paste0(round(res_end$base, 1), " tC/ha"),
+res <- c("Carbon Difference between regen and base" = paste0(round(relative_change, 1), "tC/ha"),
+         "Final SOC Base" =  paste0(round(res_end$base, 1), " tC/ha"),
          "Final SOC Regen" =  paste0(round(res_end$regen, 1), " tC/ha"),
          "Absolute change Base" = paste0(round(baseline_change, 1), " tC/ha"),
          "Percent change Base" = paste0(round(baseline_change_perc, 1), " %"),

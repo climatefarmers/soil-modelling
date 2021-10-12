@@ -1,0 +1,228 @@
+---
+title: "Uncertainty Analysis"
+author: "Clare"
+date: "15/09/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr, pracma, jsonlite, kableExtra)
+
+working_dir <- getwd()
+
+source(file.path(working_dir, "model_functions.R"))
+source(file.path(working_dir, "estimate_carbon_input.R"))
+source(file.path(working_dir, "uncertainty_functions.R"))
+
+
+crop_data <- clean_crop_variable_data(crop_data = read_csv("data/crop_values.csv", col_types =  "cdddd"))
+tilling_factors <- read_csv("data/tilling_factors.csv", col_types = "cccd") 
+
+```
+
+## Inputs
+
+There are various inputs you need to specify. The following code calculates the minimum and maximum expected results with a 90% confidence interval. The variables tested here include the soil organic carbon, soil clay content and the yield. These need to be calculated and then the yield values returned to the parameter file. 
+
+```{r inputs_uncertainty_analysis, echo=FALSE, warning=FALSE}
+
+# Set the project name, and the farm location - this must be the same name as a local weather station
+# TODO: get Tim's code to locate the closest weather station 
+project_name <- "Uncertainty"
+farm_location <- "Schwerin"
+
+# Constant variables
+# Set these once here. 
+hectares <- 100
+soil_thick <- 25
+pE <- 1    # Evaporation coefficient - 0.75 open pan evaporation or 1.0 potential evaporation
+time_horizon <- 10
+field_id <- 1 # If more than one field, need to update code. 
+bulk_density <- 1250 #kg/m3
+
+# These values are added automatically to the uncertainty analysis
+soc_perc <- seq(0.5,5.1,.5)
+clay_samples <- seq(5, 40, 10)
+
+soc_stock <- soil_thick/100 * soc_perc/100 * bulk_density * 10000/1000 # tC/ha
+
+yield <- seq(3000,6000,100)
+
+inputs_table <- c("Project Name " = project_name,
+                  "Project Location" = farm_location,
+                  "Field Size" = hectares,
+                  "Analysis Time Horizon" = paste0(time_horizon, " years"))
+
+inputs_table %>% kable(caption = "Project Input Parameters") %>% kable_styling()
+
+```
+
+
+## Project Parameters
+
+Within the parameter_file folder, you should create parameter files for the field and carbon inputs, representing the holistic management practices expected over the next 10 years. 
+
+```{r parameters, echo=FALSE, warning=FALSE}
+
+if(!dir.exists(file.path("results", project_name))){dir.create(file.path("results", project_name))}
+if(!dir.exists(file.path("plots", project_name))){dir.create(file.path("plots", project_name))}
+
+weather_data <- read.csv(paste0("data/weather_average/",tolower(farm_location),"_uncertainty.csv"))
+
+field_parameters <- read_csv(file.path(working_dir, "parameter_files", paste0(project_name,"_field_parameters.csv")),
+                             col_types = "dcccdddddcllllllllllll")
+
+field_parameters$climate_zone <- tolower(field_parameters$climate_zone)
+
+field_parameters <-  field_parameters %>% 
+  left_join(tilling_factors, by = c("climate_zone", "tilling" = "new_practice")) %>% 
+  rename(tilling_factor = factor)
+
+field_parameters <- get_bare_profile_df(field_parameters)
+
+fields <- field_parameters %>% select(field_id, case) %>% distinct()
+
+uncertainty_list <- expand.grid(
+  "field_id" = unique(fields$field_id),
+  "case" = unique(fields$case),
+  "clay" = clay_samples,
+  "soc" = soc_stock,
+  "carbon_inputs" = yield,
+  "evap" = "mean_evap",
+  "temp" = "mean_temp",
+  "precip" = "mean_precip"
+)  
+
+uncertainty_list <- uncertainty_list %>% 
+  left_join(field_parameters %>% select(field_id, case, tilling_factor, bare_profile), by = c("field_id", "case")) %>% 
+  mutate(label = 1:nrow(uncertainty_list))
+
+```
+
+The following table represents the holistic practices incorporated in this analysis. 
+
+Important to note - the main parameters that can be added to reflect holistic practices currently include:
+- Changes in Crop rotations, residue left of field and theoretically expected yields (currently just historic)
+- Change in tilling practices: Conventional -> Reduced -> No till
+- Additional Manure (no other fertilizer changes are reflected in the R model - only the LCA)
+- Cover crop impact on bare soil vs covered soil (no additional Carbon inputs can be calculated at the moment)
+
+Further research needs to be undertaken to better reflect any additional impacts that are expected. 
+
+```{r, echo=FALSE, warning=FALSE}
+
+tilling <- field_parameters %>% select(case, tilling)
+
+
+tilling %>% 
+  kable(col.names = c("Case", "Tilling Method")) %>% 
+  kable_styling()
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+
+base_profile <- field_parameters %>% select(case, bare_profile) %>% 
+  separate(bare_profile,  c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+
+base_profile %>% 
+  rename(Case = "case") %>% 
+  mutate(Jan = cell_spec(Jan, background = ifelse(Jan == TRUE, "green", "brown")),
+         Feb = cell_spec(Feb, background = ifelse(Feb == TRUE, "green", "brown")),
+         Mar = cell_spec(Mar, background = ifelse(Mar == TRUE, "green", "brown")),
+         Apr = cell_spec(Apr, background = ifelse(Apr == TRUE, "green", "brown")),
+         May = cell_spec(May, background = ifelse(May == TRUE, "green", "brown")),
+         Jun = cell_spec(Jun, background = ifelse(Jun == TRUE, "green", "brown")),
+         Jul = cell_spec(Jul, background = ifelse(Jul == TRUE, "green", "brown")),
+         Aug = cell_spec(Aug, background = ifelse(Aug == TRUE, "green", "brown")),
+         Sep = cell_spec(Sep, background = ifelse(Sep == TRUE, "green", "brown")),
+         Oct = cell_spec(Oct, background = ifelse(Oct == TRUE, "green", "brown")),
+         Nov = cell_spec(Nov, background = ifelse(Nov == TRUE, "green", "brown")),
+         Dec = cell_spec(Dec, background = ifelse(Dec == TRUE, "green", "brown"))) %>% 
+  kable(escape = F) %>% 
+  kable_styling()
+
+
+```
+
+```{r create_results, echo=FALSE, warning=FALSE}
+
+
+for (i in 1:nrow(uncertainty_list)){
+  
+  # Set parameters
+  label <- uncertainty_list$label[i]
+  case <- uncertainty_list$case[i]
+  soc <- uncertainty_list$soc[i]
+  clay <- uncertainty_list$clay[i]
+  tilling_factor <- uncertainty_list$tilling_factor[i]
+  bare_profile <- uncertainty_list$bare_profile[i]
+  
+  starting_soil_content <- estimate_starting_soil_content(soc, clay)
+  
+  field_carbon_in <- rep(uncertainty_list$carbon_inputs[i],10)
+  dr_ratios <- rep(1,10)
+
+    temp <- weather_data %>% select(uncertainty_list$temp[i]) %>% pull()
+  precip <- weather_data %>% select(uncertainty_list$precip[i]) %>% pull()
+  evap <- weather_data %>% select(uncertainty_list$evap[i]) %>% pull()
+  
+  all_c <- calc_carbon_over_time(time_horizon,
+                                 field_carbon_in,
+                                 dr_ratios,
+                                 bare_profile,
+                                 temp = temp,
+                                 precip = precip,
+                                 evap = evap,
+                                 soil_thick = soil_thick,
+                                 clay = clay,
+                                 pE = pE,
+                                 PS = starting_soil_content,
+                                 tilling_factor)
+  
+  if (label == 1){
+    all_results <- data.frame(label  = label, c_start = head(all_c$TOT,1),c_end = tail(all_c$TOT,1))
+  }else{
+    all_results <- rbind(all_results, data.frame(label  = label,c_start = head(all_c$TOT,1),c_end = tail(all_c$TOT,1)))
+  }
+  
+  
+}
+
+all_details <- left_join(uncertainty_list, all_results, by = "label")
+
+all_details <- all_details %>% select(label, case, clay, soc, carbon_inputs, tilling_factor, c_start, c_end)
+
+
+```
+
+## Results
+
+The following plot shows the relation between inputs and difference in Carbon stored in the soil within a 10 year time horizon. 
+
+```{r, echo=FALSE, warning=FALSE}
+## Results summary
+
+all_details <- all_details %>% 
+  mutate(c_diff = c_end - c_start,
+         c_perc_change = (c_end - c_start)/c_start)
+
+write.csv(all_details,"results/uncertainty_analysis_results.csv")
+
+
+```
+
+   
+
+```{r, echo=FALSE, warning=FALSE}
+a<- ggplot(all_details, aes(x = tilling_factor, y = c_diff))+
+  geom_point()
+
+
+a + facet_wrap(clay~soc)
+
+```
+
+
