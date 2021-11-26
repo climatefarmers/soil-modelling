@@ -142,7 +142,7 @@ estimate_starting_soil_content <- function(
   
   FallIOM <- 0.049 * SOC^(1.139)
   
-  starting_soc = c(0,RPM, HUM, BIO, FallIOM)
+  starting_soc = c(0,RPM, BIO, HUM, FallIOM)
   
   return(starting_soc)
   
@@ -189,8 +189,8 @@ calc_tilling_impact <- function(tilling_factor = 1,
   all_c_diff <- all_c_diff %>% 
     mutate(DPM = DPM + c_init$DPM,
            RPM = RPM + c_init$RPM,
-           BIO = BIO + c_init$BIO,
            HUM = HUM + c_init$HUM,
+           BIO = BIO + c_init$BIO,
            IOM = IOM + c_init$IOM)
   
   return(all_c_diff)
