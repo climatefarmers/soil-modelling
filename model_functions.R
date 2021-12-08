@@ -26,13 +26,18 @@ prep_soil_moisture_factor <- function(
   precip = precip,
   evap = evap,
   soil_thick = soil_thick,
-  clay = clay){
+  clay = clay,
+  pE=pE){
   
   # Monthly data frame
   years <- get_monthly_dataframe(time_horizon, add_month = F)
   
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
+  
+  # CALCULATE EFFECT OF COVERAGE ?
+  
+  fCov = ifelse(bare == TRUE, 1, 0.6)
   
   if(length(bare) == 1){
     # Calculate monthly moisture effects
@@ -57,8 +62,7 @@ prep_soil_moisture_factor <- function(
   }
   
   # Moisture factors over time
-  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW, length.out = length(years)))
-  
+  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW * fCov, length.out = length(years)))
   return(xi_frame)
   
 }
@@ -70,6 +74,7 @@ calc_soil_carbon <- function(
   dr_ratio = 1.44,
   fym_inputs = 0,
   pE = 1.0,
+  clay = 20,
   PS = c(DPM=0,RPM=0,BIO=0,HUM=0,IOM=0)
 ){
   # Monthly data frame
@@ -223,7 +228,8 @@ calc_carbon_over_time <- function(time_horizon = 10,
     precip = precip,
     evap = evap,
     soil_thick = soil_thick,
-    clay = clay)
+    clay = clay,
+    pE=pE)
   
   for (t in 1: time_horizon){
     
@@ -236,6 +242,7 @@ calc_carbon_over_time <- function(time_horizon = 10,
       xi_frame,
       c_inputs = c_in,
       dr_ratio = dr_in,
+      clay=clay,
       pE = pE,
       PS = PS
     )
