@@ -35,7 +35,7 @@ prep_soil_moisture_factor <- function(
   # Calculate monthly temperature effects
   fT <- fT.RothC(temp) 
   
-  # CALCULATE EFFECT OF COVERAGE ?
+  # Calculate effect of coverage
   
   fCov = ifelse(bare == TRUE, 1, 0.6)
   
