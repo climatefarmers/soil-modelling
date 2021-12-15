@@ -21,7 +21,6 @@
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, ggplot2, dplyr, tidyr, soilassessment, deSolve, readr)
 
-setwd("~/Stages/ClimateFarmers/soil-modelling/soil-modelling")
 working_dir <- getwd()
 
 source(file.path(working_dir, "model_functions.R"))
