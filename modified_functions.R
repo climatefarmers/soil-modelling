@@ -9,11 +9,9 @@ fW.RothC.Modified <-
             pE = 0.75, 
             bare_profile = c(T,T,T,F,F,F,F,F,F,T,T,T)) 
   {
-    
     # B = ifelse(bare == FALSE, 1, 1.8)
     # Covered: B = 1
     # Bare: B = 1.8
-    
     
     Max.TSMD_bare = -(20 + 1.3 * pClay - 0.01 * (pClay^2)) * (S.Thick/23) * 
       (1/1.8)
