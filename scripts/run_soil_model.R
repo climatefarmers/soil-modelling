@@ -3,7 +3,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   source(file.path(soil_loc, "model_functions.R"))
   source(file.path(soil_loc, "modified_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
-  source(file.path(soil_loc, "scripts/weather_data_pulling_functions.R"))
+  source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
   
   
   farm_details <- fromJSON(file.path(project_loc,project_name,"inputs", "farm_details.json"))
