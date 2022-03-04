@@ -10,10 +10,13 @@ get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario
 
 get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_factors, scenario_chosen, parcel){
   zone=ifelse(lat_farmer<57,"Temperate","Boreal")
-  trees = merge(x = filter(agroforestry_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = filter(agroforestry_factors,climatic_zone==zone), by = "tree_species", all.x = TRUE) %>% 
+  trees = merge(x = filter(agroforestry_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
+                y = filter(agroforestry_factors,climatic_zone==zone), by = "tree_species", all.x = TRUE) %>% 
     mutate (tree_density=ifelse(is.na(n_trees)==FALSE,n_trees/area,typical_tree_density)) %>%
-    mutate (tC_inputs_tree_per_ha_per_year=ifelse(is.na(tree_density)==FALSE & is.na(dbh)==FALSE & is.na(a_bg)==FALSE & is.na(b_bg)==FALSE, tree_density*(a_bg+b_bg*dbh)*C_frac_dry*root_turnover_rate,
-                                           ifelse(is.na(tree_density)==FALSE & is.na(forest_biomass_kg)==FALSE & is.na(rs_ratio)==FALSE, tree_density*forest_biomass_kg*rs_ratio*C_frac_dry*root_turnover_rate*1e-3,
+    mutate (tC_inputs_tree_per_ha_per_year=ifelse(is.na(tree_density)==FALSE & is.na(dbh)==FALSE & is.na(a_bg)==FALSE & is.na(b_bg)==FALSE, 
+                                                  tree_density*(a_bg+b_bg*dbh)*C_frac_dry*root_turnover_rate,
+                                           ifelse(is.na(tree_density)==FALSE & is.na(forest_biomass_kg)==FALSE & is.na(rs_ratio)==FALSE, 
+                                                  tree_density*forest_biomass_kg*rs_ratio*C_frac_dry*root_turnover_rate*1e-3,
                                            paste("Insufficient input data for",tree_species))))
   tC_inputs_per_ha_per_year = sum(as.numeric(trees$tC_inputs_tree_per_ha_per_year))
   return(tC_inputs_per_ha_per_year)
@@ -21,11 +24,13 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
 
 
 get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_chosen, parcel){
-  annual_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = filter(pasture_data, pasture_type=="annual"), by = "grass", all.x = TRUE) %>% 
+  annual_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
+                           y = filter(pasture_data, pasture_type=="annual"), by = "grass", all.x = TRUE) %>% 
     mutate(c_input_shoot= pasture_efficiency*ag_dm_peak*dry_c*(1-perc_agb_exported+ag_turnover)) %>%
     mutate(c_input_root= pasture_efficiency*ag_dm_peak*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)
-  perennial_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = filter(pasture_data, pasture_type=="perennial"), by = "grass", all.x = TRUE) %>% 
+  perennial_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
+                              y = filter(pasture_data, pasture_type=="perennial"), by = "grass", all.x = TRUE) %>% 
     mutate(c_input_shoot= pasture_efficiency*ag_dm_peak*dry_c*ag_turnover) %>%
     mutate(c_input_root= pasture_efficiency*ag_dm_peak*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)

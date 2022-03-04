@@ -23,7 +23,8 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   ################# Pulling calculation factors
   
-  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% rename(species=manure_source)
+  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
+    rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
@@ -41,7 +42,8 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     for(scenario in c("current","future","baseline")){
       parcel_Cinputs<-rbind(parcel_Cinputs,data.frame(parcel_ID=parcel,
                                                       scenario=scenario,
-                                                      agroforestry_Cinput=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, scenario, parcel),
+                                                      agroforestry_Cinput=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                                                                                           scenario, parcel),
                                                       animal_Cinput=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                                       crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                                       pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -57,7 +59,16 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     parcel = parcel_inputs$parcel_ID[i]
     farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
     Cinput <- (parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs
-    mean=c(list(c(Cinput,rep(NA,11))),list(c(1.44,rep(NA,11))),list(c(12/12,rep(NA,11))),list(weather_data$past_temperature),list(weather_data$past_precipitation*365*30.4*24*3600),list(weather_data$past_pevap*365*30.4*24*3600),list(c(30,rep(NA,11))),list(c(15,rep(NA,11))),list(c(0.75,rep(NA,11))),list(c(1.0,rep(NA,11))))
+    mean=c(list(c(Cinput,rep(NA,11))),
+           list(c(1.44,rep(NA,11))),
+           list(c(12/12,rep(NA,11))),
+           list(weather_data$past_temperature),
+           list(weather_data$past_precipitation*365*30.4*24*3600),
+           list(weather_data$past_pevap*365*30.4*24*3600),
+           list(c(30,rep(NA,11))),
+           list(c(15,rep(NA,11))),
+           list(c(0.75,rep(NA,11))),
+           list(c(1.0,rep(NA,11))))
     colnames_ranges=c("field_carbon_in","dr_ratios","perc_cover","temp","precip","evap","soil_thick","clay","pE","tilling_factor")
     mean_input = data.frame(mean)
     colnames(mean_input) = colnames_ranges
@@ -79,7 +90,16 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     new_starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
     #new_starting_soil_content <- estimate_starting_soil_content(SOC=18.1,clay=mean_input$clay[1])
     
-    mean=c(list(c(Cinput,rep(NA,11))),list(c(1.44,rep(NA,11))),list(c(12/12,rep(NA,11))),list(weather_data$future_temperature),list(weather_data$future_precipitation*365*30.4*24*3600),list(weather_data$future_pevap*365*30.4*24*3600),list(c(30,rep(NA,11))),list(c(15,rep(NA,11))),list(c(0.75,rep(NA,11))),list(c(1.0,rep(NA,11))))
+    mean=c(list(c(Cinput,rep(NA,11))),
+           list(c(1.44,rep(NA,11))),
+           list(c(12/12,rep(NA,11))),
+           list(weather_data$future_temperature),
+           list(weather_data$future_precipitation*365*30.4*24*3600),
+           list(weather_data$future_pevap*365*30.4*24*3600),
+           list(c(30,rep(NA,11))),
+           list(c(15,rep(NA,11))),
+           list(c(0.75,rep(NA,11))),
+           list(c(1.0,rep(NA,11))))
     colnames_ranges=c("field_carbon_in","dr_ratios","perc_cover","temp","precip","evap","soil_thick","clay","pE","tilling_factor")
     mean_input = data.frame(mean)
     colnames(mean_input) = colnames_ranges
@@ -122,7 +142,16 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     # print(tail(C0_df_baseline,1))
     
     Cinput <- (parcel_Cinputs %>% filter (scenario=="future" & parcel_ID==parcel))$tot_Cinputs
-    mean=c(list(c(Cinput,rep(NA,11))),list(c(1.44,rep(NA,11))),list(c(12/12,rep(NA,11))),list(weather_data$future_temperature),list(weather_data$future_precipitation*365*30.4*24*3600),list(weather_data$future_pevap*365*30.4*24*3600),list(c(30,rep(NA,11))),list(c(15,rep(NA,11))),list(c(0.75,rep(NA,11))),list(c(1.0,rep(NA,11))))
+    mean=c(list(c(Cinput,rep(NA,11))),
+           list(c(1.44,rep(NA,11))),
+           list(c(12/12,rep(NA,11))),
+           list(weather_data$future_temperature),
+           list(weather_data$future_precipitation*365*30.4*24*3600),
+           list(weather_data$future_pevap*365*30.4*24*3600),
+           list(c(30,rep(NA,11))),
+           list(c(15,rep(NA,11))),
+           list(c(0.75,rep(NA,11))),
+           list(c(1.0,rep(NA,11))))
     colnames_ranges=c("field_carbon_in","dr_ratios","perc_cover","temp","precip","evap","soil_thick","clay","pE","tilling_factor")
     mean_input = data.frame(mean)
     colnames(mean_input) = colnames_ranges
@@ -143,7 +172,10 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     print(tail(C0_df_holistic,1))
     
     
-    all_results <- rbind(all_results,data.frame(parcel_ID=rep(parcel,264),time=rep(seq(as.Date("2021-1-1"), as.Date("2031-12-31"), by = "month"),2),SOC=c(tail(C0_df,12)$TOT,C0_df_mdf$TOT,tail(C0_df,12)$TOT,C0_df_holistic$TOT),scenario=c(rep("baseline",132),rep("holistic",132)),farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
+    all_results <- rbind(all_results,data.frame(parcel_ID=rep(parcel,264),time=rep(seq(as.Date("2021-1-1"), as.Date("2031-12-31"), by = "month"),2),
+                                                SOC=c(tail(C0_df,12)$TOT,C0_df_mdf$TOT,tail(C0_df,12)$TOT,C0_df_holistic$TOT),
+                                                scenario=c(rep("baseline",132),rep("holistic",132)),
+                                                farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
   }
   farm_results <- unique(all_results %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(time,scenario,SOC_farm))
   name<-"Results_farm_Franscisco_Ales"
