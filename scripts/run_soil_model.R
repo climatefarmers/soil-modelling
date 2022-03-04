@@ -1,3 +1,9 @@
+########################### AUTOMATED SOIL MODEL RUNNING SCRIPT
+# Missing automated pull of DPM/RPM ratio from input (aboveground crop/pasture/root exudates) type
+# Missing automated pull of bare soil
+# Unsure about use of soil depth in model: no effect on sensitivity analysis
+# Missing automated pull of clay content: it is not set where we will find it
+
 run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,weatherDB_loc){
   
   source(file.path(soil_loc, "model_functions.R"))
