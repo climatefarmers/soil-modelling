@@ -3,6 +3,8 @@
 # Missing automated pull of bare soil
 # Unsure about use of soil depth in model: no effect on sensitivity analysis
 # Missing automated pull of clay content: it is not set where we will find it
+# Missing automated pull of standard errors for input parameters
+# Missing observed SOC values for bias analysis
 
 run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,weatherDB_loc){
   
@@ -18,13 +20,14 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   ################# Weather data pulling
   
-  weather_data = data.frame(past_temperature=rep(NA,12),future_temperature=rep(NA,12),
-                            past_precipitation=rep(NA,12),future_precipitation=rep(NA,12),
-                            past_pevap=rep(NA,12),future_pevap=rep(NA,12))
+  weather_data = data.frame(past_temperature=rep(NA,12))
   
-  weather_data[,c("past_temperature", "future_temperature")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer)
-   weather_data[,c("past_precipitation", "future_precipitation")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer)
-  weather_data[,c("past_pevap", "future_pevap")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer)
+  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5")
+  weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5")
+  weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5")
+  weather_data[,c("future_temperature_rcp8.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp8.5")[13:24]
+  weather_data[,c("future_precipitation_rcp8.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp8.5")[13:24]
+  weather_data[,c("future_pevap_rcp8.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp8.5")[2]
   
   
   ################# Pulling calculation factors
@@ -66,11 +69,11 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
          list(c(0.5,rep(NA,11))),
          list(as.factor(c(logical(12)))),
          list(weather_data$past_temperature),
-         list(weather_data$future_temperature),
+         list(weather_data$future_temperature_rcp4.5),
          list(weather_data$past_precipitation*365*30.4*24*3600),
-         list(weather_data$future_precipitation*365*30.4*24*3600),
+         list(weather_data$future_precipitation_rcp4.5*365*30.4*24*3600),
          list(weather_data$past_pevap*365*30.4*24*3600),
-         list(weather_data$future_pevap*365*30.4*24*3600),
+         list(weather_data$future_pevap_rcp4.5*365*30.4*24*3600),
          list(c(30,rep(NA,11))),
          list(c(15,rep(NA,11))),
          list(c(0.75,rep(NA,11))),
@@ -99,12 +102,12 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
   
-  n_run = 100
+  n_run = 2
   
   for (run_ID in c(1:n_run)){
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
     farm_results_batch<-data.frame(run=c(),time=c(),SOC_farm=c(),scenario=c())
-    
+    #Choice of a random factor to normally randomize input values
     batch_coef=data.frame(field_carbon_in = rnorm(1,1,sd$field_carbon_in),
                           dr_ratios = rnorm(1,1,sd$dr_ratios),
                      temp = rnorm(1,1,sd$temp),
@@ -114,7 +117,19 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                      clay = rnorm(1,1,sd$clay),
                      pE = rnorm(1,1,sd$pE),
                      tilling_factor = rnorm(1,1,sd$tilling_factor))
-    
+    #Choose randomly one of the two climate scenari
+    climate_scenario = ifelse(sample(0:1,1)==0, 'rcp4.5', 'rcp8.5')
+    if (climate_scenario=='rcp4.5'){
+      mean_input$future_temp = weather_data$future_temperature_rcp4.5
+      mean_input$future_precip = weather_data$future_precipitation_rcp4.5*365*30.4*24*3600
+      mean_input$future_evap = weather_data$future_pevap_rcp4.5*365*30.4*24*3600
+      }
+    if (climate_scenario=='rcp8.5'){
+      mean_input$future_temp = weather_data$future_temperature_rcp8.5
+      mean_input$future_precip = weather_data$future_precipitation_rcp8.5*365*30.4*24*3600
+      mean_input$future_evap = weather_data$future_pevap_rcp8.5*365*30.4*24*3600
+    }
+    #Apply factors to inputs average
     batch=data.frame(run=run_ID,
                      dr_ratios = mean_input$dr_ratios[1]*batch_coef$dr_ratios,
                      bare = mean_input$bare,
@@ -128,9 +143,9 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                      clay = mean_input$clay[1]*batch_coef$clay,
                      pE = mean_input$pE[1]*batch_coef$pE,
                      tilling_factor = mean_input$tilling_factor[1]*batch_coef$tilling_factor)
-    
     batch = data.frame(batch)
     
+    #Starts modelling each parcel
     for(i in c(1:nrow(parcel_inputs))){
       parcel = parcel_inputs$parcel_ID[i]
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
@@ -279,6 +294,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   print(graph)
   dev.off()
+  
   histogram <- ggplot(step_in_table_final) +
     geom_bar( aes(x=year, y=yearly_certificates_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
     xlab("Time")+
