@@ -8,7 +8,7 @@ get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario
 }
 
 
-get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_factors, scenario_chosen, parcel){
+get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_factors, scenario_chosen, parcel, lat_farmer){
   zone=ifelse(lat_farmer<57,"Temperate","Boreal")
   trees = merge(x = filter(agroforestry_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
                 y = filter(agroforestry_factors,climatic_zone==zone), by = "tree_species", all.x = TRUE) %>% 
