@@ -53,7 +53,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       parcel_Cinputs<-rbind(parcel_Cinputs,data.frame(parcel_ID=parcel,
                                                       scenario=scenario,
                                                       agroforestry_Cinput=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
-                                                                                                           scenario, parcel),
+                                                                                                           scenario, parcel, lat_farmer),
                                                       animal_Cinput=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                                       crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                                       pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -259,12 +259,12 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       nveg_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs)
-      batch$field_carbon_in <- 0.5*(sum(nveg_soil_content)+(batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs)
+      batch$field_carbon_in <- 0.5*(Cinput_leading_to_observed_SOC_past_land_use+(batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs)
       time_horizon = 350
       
       C0_df <- calc_carbon_over_time(time_horizon,
                                      field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                     dr_ratios = rep(batch$dr_ratios_savanna,time_horizon),
+                                     dr_ratios = rep(dr_ratios_savanna,time_horizon),
                                      bare = batch$bare,
                                      temp = batch$past_temp,
                                      precip = batch$past_precip,
@@ -312,8 +312,26 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       print("Modern-day farming:")
       print(tail(C0_df_mdf,1))
       
+      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="current" & parcel_ID==parcel))$tot_Cinputs
+      time_horizon = 1
+      C0_df_1sty <- calc_carbon_over_time(time_horizon,
+                                              field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
+                                              dr_ratios = rep(batch$dr_ratios[1],time_horizon),
+                                              bare = batch$bare,
+                                              temp = batch$future_temp,
+                                              precip = batch$future_precip,
+                                              evap = batch$future_evap,
+                                              soil_thick = batch$soil_thick[1],
+                                              clay = batch$clay[1],
+                                              pE = batch$pE[1],
+                                              PS = new_starting_soil_content,
+                                              tilling_factor = batch$tilling_factor[1])
+      print("1st year :")
+      print(tail(C0_df_1sty,1))
+      new_starting_soil_content <- as.numeric(tail(C0_df_1sty,1))[c(1:5)]
+      
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="future" & parcel_ID==parcel))$tot_Cinputs
-      time_horizon = 10
+      time_horizon = 9
       C0_df_holistic <- calc_carbon_over_time(time_horizon,
                                               field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
                                               dr_ratios = rep(batch$dr_ratios[1],time_horizon),
@@ -329,6 +347,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       print("Holictic planning:")
       print(tail(C0_df_holistic,1))
       
+      C0_df_holistic <- rbind(C0_df_1sty,C0_df_holistic)
       
       all_results_batch <- rbind(all_results_batch,data.frame(run=run_ID,
                                                               parcel_ID=rep(parcel,264),time=rep(seq(as.Date("2021-1-1"), as.Date("2031-12-31"), by = "month"),2),
