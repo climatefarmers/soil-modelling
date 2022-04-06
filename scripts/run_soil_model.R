@@ -32,7 +32,6 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   
   ################# Pulling calculation factors
-  
   animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
     rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
@@ -46,9 +45,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
   parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
   
-  parcel_inputs = data.frame(parcel_ID=c("Montado-bale-grazing"),area=700)
   ################# Calculations per parcel and scenario
-  
   parcel_Cinputs =data.frame(parcel_ID=c(),scenario=c(),agroforestry_Cinput=c(),animal_Cinput=c(),crop_Cinputs=c(),pasture_Cinputs=c())
   for(parcel in parcel_inputs$parcel_ID){
     for(scenario in c("current","future","baseline")){
@@ -197,7 +194,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   run_ID = 0
   
-  n_run = 3
+  n_run = 100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -327,7 +324,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       new_starting_soil_content <- as.numeric(tail(C0_df_1sty,1))[c(1:5)]
       
       # For future, C_inputs are more uncertain
-      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**2)
+      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**1.5)
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="future" & parcel_ID==parcel))$tot_Cinputs
       time_horizon = 9
       C0_df_holistic <- calc_carbon_over_time(time_horizon,
