@@ -4,7 +4,6 @@
 # Unsure about use of soil depth in model: no effect on sensitivity analysis
 # Missing automated pull of clay content: it is not set where we will find it
 # Missing automated pull of standard errors for input parameters
-# Missing observed SOC values for bias analysis
 # Missing change RothC parameters to semi-arid according to Farina et al. 2013
 
 run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,weatherDB_loc){
@@ -36,9 +35,11 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
+  manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
   
   ################# Pulling calculation inputs
+  add_manure_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "additional_manure_inputs.csv"))
   animal_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "animal_inputs.csv"))
   agroforestry_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "agroforestry_inputs.csv"))
   crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
@@ -46,22 +47,24 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
   
   ################# Calculations per parcel and scenario
-  parcel_Cinputs =data.frame(parcel_ID=c(),scenario=c(),agroforestry_Cinput=c(),animal_Cinput=c(),crop_Cinputs=c(),pasture_Cinputs=c())
+  parcel_Cinputs =data.frame(parcel_ID=c(),scenario=c(),add_manure_Cinputs=c(),agroforestry_Cinput=c(),animal_Cinput=c(),crop_Cinputs=c(),pasture_Cinputs=c())
   for(parcel in parcel_inputs$parcel_ID){
-    for(scenario in c("current","future","baseline")){
+    for(scenario in c("current","future","baseline","previous_years")){
       parcel_Cinputs<-rbind(parcel_Cinputs,data.frame(parcel_ID=parcel,
                                                       scenario=scenario,
-                                                      agroforestry_Cinput=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                                      add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
+                                                      agroforestry_Cinputs=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
                                                                                                            scenario, parcel, lat_farmer),
-                                                      animal_Cinput=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
+                                                      animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                                       crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                                       pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
     }
   }
-  parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=agroforestry_Cinput+animal_Cinput+crop_Cinputs+pasture_Cinputs)
+  parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
   
   write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
   
+  baseline_chosen="baseline"
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   mean=c(list(rep(0,12)),
@@ -82,7 +85,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   colnames(mean_input) = colnames_ranges
   
   sd=data.frame(field_carbon_in=0.05,
-                dr_ratios = 0.15,
+                dr_ratios = 0.05,
                 temp = 0.025,
                 precip = 0.025,
                 evap = 0.025,
@@ -181,6 +184,28 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   Cinput_leading_to_observed_SOC_past_land_use = SOC_nveg/slope
   
+  ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
+  
+  # Initialisation as a forest
+  batch$field_carbon_in <- rep(Cinput_leading_to_observed_SOC_past_land_use,12)
+  starting_soil_content <- estimate_starting_soil_content(SOC=Cinput_leading_to_observed_SOC_past_land_use,clay=mean_input$clay[1])
+  time_horizon = 1000
+  C0_df <- calc_carbon_over_time(time_horizon,
+                                 field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
+                                 dr_ratios = rep(dr_ratio_forest,time_horizon),
+                                 bare = batch$bare,
+                                 temp = batch$past_temp,
+                                 precip = batch$past_precip,
+                                 evap = batch$past_evap,
+                                 soil_thick = batch$soil_thick[1],
+                                 clay = batch$clay[1],
+                                 pE = batch$pE[1],
+                                 PS = starting_soil_content,
+                                 tilling_factor = batch$tilling_factor[1])
+  nveg_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
+  
+  
+  # Modelling perform several times with different inputs
   
   step_in_table <- data.frame(run=c(),
                               year=c(),
@@ -194,7 +219,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   run_ID = 0
   
-  n_run = 100
+  n_run = 35
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -236,33 +261,17 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                      pE = mean_input$pE[1]*batch_coef$pE,
                      tilling_factor = mean_input$tilling_factor[1]*batch_coef$tilling_factor)
     batch = data.frame(batch)
-    ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
+    
     for(i in c(1:nrow(parcel_inputs))){
       parcel = parcel_inputs$parcel_ID[i]
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
-      # Initialisation
-      batch$field_carbon_in <- rep(Cinput_leading_to_observed_SOC_past_land_use,12)
-      starting_soil_content <- estimate_starting_soil_content(SOC=Cinput_leading_to_observed_SOC_past_land_use,clay=mean_input$clay[1])
-      time_horizon = 1000
-      C0_df <- calc_carbon_over_time(time_horizon,
-                                     field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                     dr_ratios = rep(dr_ratio_forest,time_horizon),
-                                     bare = batch$bare,
-                                     temp = batch$past_temp,
-                                     precip = batch$past_precip,
-                                     evap = batch$past_evap,
-                                     soil_thick = batch$soil_thick[1],
-                                     clay = batch$clay[1],
-                                     pE = batch$pE[1],
-                                     PS = starting_soil_content,
-                                     tilling_factor = batch$tilling_factor[1])
-      nveg_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      
+      # Progressive transisiton from the general forest to the specific baseline land use over 350 years
+      initialized_soil_content <- nveg_soil_content
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
-      batch$field_carbon_in <- 0.5*(Cinput_leading_to_observed_SOC_past_land_use+(batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs)
       time_horizon = 350
-      
-      C0_df <- calc_carbon_over_time(time_horizon,
+      for(i in c(1:time_horizon)){
+        batch$field_carbon_in <- (time_horizon-i)/time_horizon*Cinput_leading_to_observed_SOC_past_land_use+i/time_horizon*(batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs
+        C0_df <- calc_carbon_over_time(1,
                                      field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
                                      dr_ratios = rep(dr_ratios_savanna,time_horizon),
                                      bare = batch$bare,
@@ -272,11 +281,13 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      soil_thick = batch$soil_thick[1],
                                      clay = batch$clay[1],
                                      pE = batch$pE[1],
-                                     PS = nveg_soil_content,
+                                     PS = initialized_soil_content,
                                      tilling_factor = batch$tilling_factor[1])
+        initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
+      }
       initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
-      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs
+      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
       time_horizon = 75
       C0_df <- calc_carbon_over_time(time_horizon,
                                      field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
@@ -292,7 +303,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      tilling_factor = batch$tilling_factor[1])
       new_starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
-      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs
+      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
       time_horizon = 10
       C0_df_mdf <- calc_carbon_over_time(time_horizon,
                                          field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
@@ -324,7 +335,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       new_starting_soil_content <- as.numeric(tail(C0_df_1sty,1))[c(1:5)]
       
       # For future, C_inputs are more uncertain
-      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**1.5)
+      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**2)
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="future" & parcel_ID==parcel))$tot_Cinputs
       time_horizon = 9
       C0_df_holistic <- calc_carbon_over_time(time_horizon,
@@ -427,12 +438,12 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     ylab("Number of certificates issuable (per year)")
   #geom_errorbar( aes(x=year, ymin=yearly_certificates_mean-1.96*yearly_certificates_sd, ymax=yearly_certificates_mean+1.96*yearly_certificates_sd))#, width=0.4, colour="black", alpha=0.9, size=1.3)
   print(histogram)
-  name<-paste("Certificates_farm_",project_name,sep = "")
+  name<-paste("MDF_baseline_Certificates_farm_",project_name,sep = "")
   png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   print(histogram)
   dev.off()
-  write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
-  write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
-  write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps.csv",sep="")), row.names = TRUE)
+  write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel_MDF_baseline.csv",sep="")), row.names = TRUE)
+  write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,"_MDF_baseline.csv",sep="")), row.names = TRUE)
+  write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps_MDF_baseline.csv",sep="")), row.names = TRUE)
 
 }
