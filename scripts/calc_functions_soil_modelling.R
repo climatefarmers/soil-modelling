@@ -1,5 +1,14 @@
 library(tidyr)
 
+### Animal input due to manure daily spreading over a grazed field
+get_monthly_Cinputs_add_manure <- function (add_manure_inputs, manure_factors, scenario_chosen, parcel){
+  add_manure = merge(x = filter(add_manure_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = manure_factors, by = "manure_source", all.x = TRUE) %>% 
+    mutate (tC_inputs_add_manure= quantity_kg_ha*remaining_frac*carbon_content)
+  tC_inputs_add_manure = sum(add_manure$tC_inputs_add_manure)*1e-3
+  return(tC_inputs_add_manure)
+}
+
+### Animal input due to manure daily spreading over a grazed field
 get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario_chosen, parcel){
   animals = merge(x = filter(animal_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = animal_factors, by = "species", all.x = TRUE) %>% 
     mutate (C_inputs_manure_kg_per_ha_per_year= n_animals*c_kg_per_year_per_animal/area*grazing_days/365)
@@ -27,12 +36,12 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
 get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_chosen, parcel){
   annual_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
                            y = filter(pasture_data, pasture_type=="annual"), by = "grass", all.x = TRUE) %>% 
-    mutate(c_input_shoot= (fresh_residual+fresh_yield*0.15)*dry*dry_c) %>%
+    mutate(c_input_shoot= (fresh_residual+fresh_yield*0.15)*pasture_efficiency*dry*dry_c) %>%
     mutate(c_input_root= pasture_efficiency*ag_fresh_peak*dry*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)
   perennial_pastures <- merge(x = filter(pasture_inputs,scenario==scenario_chosen & parcel_ID==parcel),
                               y = filter(pasture_data, pasture_type=="perennial"), by = "grass", all.x = TRUE) %>% 
-    mutate(c_input_shoot= (fresh_residual+fresh_yield*0.15)*dry*dry_c) %>%
+    mutate(c_input_shoot= (fresh_yield*0.15+pasture_efficiency*ag_fresh_peak*ag_turnover)*dry*dry_c) %>%
     mutate(c_input_root= pasture_efficiency*ag_fresh_peak*dry*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)
   tC_inputs_per_ha_per_year = sum(perennial_pastures$c_inputs*perennial_pastures$perennial_frac,na.rm=T)+
@@ -49,15 +58,12 @@ get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, p
                                         ifelse(is.na(dry_residue)==TRUE & is.na(fresh_residue)==TRUE & is.na(residue_frac)==TRUE,NA,
                                                ifelse(is.na(dry_yield)==FALSE, dry_yield*dry_c*residue_frac,
                                                       ifelse(is.na(fresh_yield)==FALSE, fresh_yield*dry*dry_c*residue_frac,
-                                                             ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*residue_frac,
-                                                                    NA))))))) %>%
-    mutate(c_root= ifelse(is.na(dry_residue)==FALSE & is.na(dry_yield)==FALSE, (dry_yield+dry_residue)*dry_c*r_s_ratio,
-                                ifelse(is.na(fresh_residue)==FALSE & is.na(fresh_yield)==FALSE, (fresh_yield+fresh_residue)*dry*dry_c*r_s_ratio,
-                                       ifelse(is.na(residue_frac)==TRUE,NA,
-                                              ifelse(is.na(dry_yield)==FALSE, dry_yield/(1-residue_frac)*dry_c*r_s_ratio,
-                                                     ifelse(is.na(fresh_yield)==FALSE, fresh_yield/(1-residue_frac)*dry*dry_c*residue_frac*r_s_ratio,
+                                                             ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*residue_frac, 
+                                                                    NA))))))) %>% # Warning should be implemented
+    mutate(c_root= ifelse(is.na(dry_agb_at_peak)==FALSE, dry_agb_at_peak*dry_c*r_s_ratio,
+                          ifelse(is.na(fresh_agb_at_peak)==FALSE, fresh_agb_at_peak*dry*dry_c*r_s_ratio,
                                                             ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*r_s_ratio,
-                                                                   NA))))))) %>%
+                                                                   NA)))) %>% # Warning should be implemented
     mutate(c_inputs= c_shoot*s_turnover + c_root*r_turnover)
   
   # if (is.na(crops$dry_residue)==TRUE & is.na(crops$fresh_residue)==TRUE & is.na(crops$residue_frac)==TRUE){
