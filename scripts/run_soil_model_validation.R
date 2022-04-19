@@ -1,3 +1,20 @@
+# Code to run bias estimation 
+
+# Description of the script ----
+## Dependencies
+## model_functions.R
+## modified_functions.R
+## scripts/calc_functions_soil_modelling.R
+## scripts/weather_data_pulling_functions.R
+## Weather database should be accessible. 
+## json file should have all paths, including correct path for database. 
+## Data with farmer information - must have the following columns: 
+## latitude, longitude 
+## C inputs are taken from modelling the baseline. 
+## G:\Shared drives\Climate Farmers\02_Product\01_02_Transition_Finance\Carbon_Credits\FarmerData\Francisco Alves\result\parcel_Cinput.csv
+
+
+# Future amends -----
 ########################### AUTOMATED SOIL MODEL RUNNING SCRIPT
 # Missing automated pull of DPM/RPM ratio from input (aboveground crop/pasture/root exudates) type
 # Missing automated pull of bare soil
@@ -7,7 +24,17 @@
 # Missing observed SOC values for bias analysis
 # Missing change RothC parameters to semi-arid according to Farina et al. 2013
 
-run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,weatherDB_loc){
+library(rjson)
+
+# Function ----
+soil_loc <- "C:/Users/vazqu003/OneDrive - Wageningen University & Research/Climate farmers/GithubForks/soil-modelling"
+project_loc <- "G:/Shared drives/Climate Farmers/02_Product/01_02_Transition_Finance/Carbon_Credits/FarmerData"
+# Check the loc for weather DB. 
+project_name<- "/Francisco Alves"
+modelling_data_loc <- "C:/Users/vazqu003/OneDrive - Wageningen University & Research/Climate farmers/GithubForks/modelling-data"
+weatherDB_loc <- "G:/Shared drives/Climate Farmers/07_Tech/Modelling/WeatherDB/sis-biodiversity-cmip5-regional_data"
+
+run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,weatherDB_loc, lat, long, land_use){
   
   source(file.path(soil_loc, "model_functions.R"))
   source(file.path(soil_loc, "modified_functions.R"))
@@ -15,19 +42,20 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
   
   
-  lat_farmer <- 38.58358 # SELECT LAT
-  lon_farmer <- -8.211738 # SELECT LON
+  lat_farmer <- lat # SELECT LAT
+  lon_farmer <- long # SELECT LON
   
   ################# Weather data pulling, YOU NEED ONLY PAST WEATHER
   
   weather_data = data.frame(past_temperature=rep(NA,12))
   
-  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5")
+  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer, scenario="rcp4.5")
   weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5")
   weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5")
   
   ############################################ HERE IS C INPUTS CALC <- I WOULD BETTER PROVIDE YOU A NUMBER DIRECTLY
   
+
   # ################# Pulling calculation factors
   # 
   # animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
@@ -58,7 +86,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   # }
   # parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=agroforestry_Cinput+animal_Cinput+crop_Cinputs+pasture_Cinputs)
   # 
-  # write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
+
   # 
   Cinput_baseline = 2 # TO BE DETERMINED
     
@@ -69,7 +97,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   mean=c(list(rep(0,12)),
          list(c(0.67,rep(NA,11))),
          list(as.factor(c(logical(12)))),
-         list(weather_data$past_temperature),
+         list(weather_data$past_temperature-273.15),
          list(weather_data$past_precipitation*365*30.4*24*3600),
          list(weather_data$past_pevap*365*30.4*24*3600),
          list(c(30,rep(NA,11))),
@@ -82,66 +110,50 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   # Studying the BIAS in the Roth C model
   # Read in management files ----
-  # Should have 3 scenarios: Natural vegetation, Baseline farm, future farm. 
-  # For each scenario we need input variables:
-  ##### Natural vegetation: Clay, silt, total carbon, either bulk density or organic matter, climate 
-  ##### Baseline farm: Clay, silt, carbon inputs, tillage & other management, climate. 
-  ##### Future farm: Clay, silt, carbon inputs, tillage and other management, future climate. 
+  # We need a table with input values for tree-covered areas
+  #                      input values for cropland
+  #                      input values for grassland
+  #                      input values for shrubland (?)
   
+  # It needs the "forest" inputs as well in order to have proper initialisation. 
+
   LU<-read.csv(file.path(modelling_data_loc,"data", "/soil_landuse.portugal.csv"))
   LU<-LU[LU$latitude < 39.5,] # Roughly where dry temperate weather starts in portugal 
   table(LU$landcover)
-  validation.dt.baseline<-LU[LU$landcover=="Cropland", ]
-  calibration.dt.nveg<-LU[LU$landcover=="Tree cover", ]
+  cropland.vs <- LU[LU$landcover=="Cropland", ]
+  tree.vs     <- LU[LU$landcover=="Tree cover", ]
+  grassland.vs<- LU[LU$landcover=="Grassland", ]
+
   # Phase 1 - model initialization ----
   # I could average all "tree cover" areas. I don't need to validate these. 
   # The baseline scenario for calibration should be ind. from the baseline sc. in validation
   # Phase 1 - a) Understanding input data ----
-  ##hist(calibration.dt.nveg$cstock_t.ha)
-  median(calibration.dt.nveg$cstock_t.ha)
-  # To improve: extrapolation of C in deeper layers. 
-  validation.dt.baseline<-validation.dt.baseline[validation.dt.baseline$lower_depth>10, ]
-  calibration.dt.nveg<-calibration.dt.nveg[calibration.dt.nveg$lower_depth>10, ]
-  # We're supposed to use Mg per ha. But I'm pretty sure this is in tons per ha. 
-  cstock25<-calibration.dt.nveg$cstock_t.ha*25/calibration.dt.nveg$lower_depth
-  clay=median(calibration.dt.nveg$clay_value_avg)        #Percent clay
+  tree.vs<-tree.vs[tree.vs$lower_depth>10, ]
+  cstock25<-tree.vs$cstock_t.ha*25/tree.vs$lower_depth
+  clay=median(tree.vs$clay_value_avg)        #Percent clay
   depth = 25
   cstock= median(cstock25)
-  clay.sd = sd(calibration.dt.nveg$clay_value_avg)
+  clay.sd = sd(tree.vs$clay_value_avg)
   cstock.sd= sd(cstock25)
-  median(cstock25[calibration.dt.nveg$clay_value_avg>10.3 & calibration.dt.nveg$clay_value_avg<16.3])
-  # hist(calibration.dt.nveg$clay_value_avg)
-  # hist(cstock25)
-  # plot(cstock25~calibration.dt.nveg$clay_value_avg)
-  # hist(calibration.dt.nveg$clay_value_avg)
-  # plot(cstock25, calibration.dt.nveg$clay_value_avg)
-  # Phase 1 - b) Initialise model - pedotransfer functions. ----
-  FallIOM=0.049*cstock25^(1.139) #IOM using Falloon method
+  median(cstock25[tree.vs$clay_value_avg>10.3 & tree.vs$clay_value_avg<16.3])
+
+  FallIOM=0.049*cstock^(1.139) #IOM using Falloon method
   DMP_RPM<- 0.25 # For forests
   # Two approaches: We use C input calculated by paper
   # We use pedotransfer functions for compartment equilibrium 
   # From Weihermuller et al 2013
-  RPM = (0.1847*cstock25+0.1555)*((clay+1.2750)^-0.1158)
-  HUM = (0.7148*cstock25+0.5069)*((clay+0.3421)^0.0184)
-  BIO = (0.0140*cstock25+0.0075)*((clay+8.8473)^0.0567)
+  RPM = (0.1847*cstock+0.1555)*((clay+1.2750)^-0.1158)
+  HUM = (0.7148*cstock+0.5069)*((clay+0.3421)^0.0184)
+  BIO = (0.0140*cstock+0.0075)*((clay+8.8473)^0.0567)
   # And let the model get to equilibrium 
-  # from arosa et al 2015 https://www.publish.csiro.au/sr/SR15347
-  # input is 617 kg leaves/ha x year  
-  # C content is 1001mg C in 2g of leaves. Which means each gram of leaves has 500mg of C = 0.5g of C. 
-  # That means for each Kg of leaves, half is Carbon. 
-  # That's 0.505kg per kg of litterfall. 
-  # These are C input kg/ha/year --Should be in MEGA g, which is 1000kg 
-  cinput_arosa <- 617*0.505/1000  # That's per year. 
-  # This neglects other inputs, such as root turnover, 
-  # animal deaths etc. 
-  # I expect an underestimation . 
   soil.thick=25  #Soil thickness (organic layer topsoil), in cm
   SOC_nveg=median(cstock25)       #Soil organic carbon in Mg/ha 
   dr_ratio_forest = 0.25
   dr_ratios_savanna = 0.67
   time_horizon = 1000
   ##### TO DO : change RothC parameters to semi-arid according to Farina et al. 2013
-  # d) Phase 1 - solve for C inputs ---- 
+
+    # d) Phase 1 - solve for C inputs ---- 
   # we model 10 C inputs. and plot them
   Cinputs=c(10, 20)   #Annual C inputs to soil in Mg/ha/yr
   c_cinput_balance<-data.frame(matrix(nrow=length(Cinputs), ncol=2))
