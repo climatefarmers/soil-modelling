@@ -76,7 +76,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
          list(weather_data$future_precipitation_rcp4.5),
          list(weather_data$past_pevap),
          list(weather_data$future_pevap_rcp4.5),
-         list(c(30,rep(NA,11))),
+         list(c(20,rep(NA,11))),
          list(c(15,rep(NA,11))),
          list(c(0.75,rep(NA,11))),
          list(c(1.0,rep(NA,11))))
