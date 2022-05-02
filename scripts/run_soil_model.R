@@ -180,7 +180,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   Cinput_leading_to_observed_SOC_past_land_use = SOC_nveg/slope
   
   ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
-  
+  # ATTENTION: Where does the "batch" dataframe start? 
   # Initialisation as a forest
   batch$field_carbon_in <- rep(Cinput_leading_to_observed_SOC_past_land_use,12)
   starting_soil_content <- estimate_starting_soil_content(SOC=Cinput_leading_to_observed_SOC_past_land_use,clay=mean_input$clay[1])
@@ -279,7 +279,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      PS = initialized_soil_content,
                                      tilling_factor = batch$tilling_factor[1])
         initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      }
+      } 
       initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
@@ -295,7 +295,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      clay = batch$clay[1],
                                      pE = batch$pE[1],
                                      PS = initialized_soil_content,
-                                     tilling_factor = batch$tilling_factor[1])
+                                     tilling_factor = batch$tilling_factor[1]) # Attention: is there any tillage in the scenarios?
       new_starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
