@@ -131,25 +131,20 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   # hist(calibration.dt.nveg$clay_value_avg)
   # plot(cstock25, calibration.dt.nveg$clay_value_avg)
   # Phase 1 - b) Initialise model - pedotransfer functions. ----
-  FallIOM=0.049*cstock25^(1.139) #IOM using Falloon method
+  FallIOM=0.049*cstock^(1.139) #IOM using Falloon method
   DMP_RPM<- 0.25 # For forests
   # Two approaches: We use C input calculated by paper
   # We use pedotransfer functions for compartment equilibrium 
   # From Weihermuller et al 2013
-  RPM = (0.1847*cstock25+0.1555)*((clay+1.2750)^-0.1158)
-  HUM = (0.7148*cstock25+0.5069)*((clay+0.3421)^0.0184)
-  BIO = (0.0140*cstock25+0.0075)*((clay+8.8473)^0.0567)
+  RPM = (0.1847*cstock+0.1555)*((clay+1.2750)^-0.1158)
+  HUM = (0.7148*cstock+0.5069)*((clay+0.3421)^0.0184)
+  BIO = (0.0140*cstock+0.0075)*((clay+8.8473)^0.0567)
   # And let the model get to equilibrium 
   # from arosa et al 2015 https://www.publish.csiro.au/sr/SR15347
   # input is 617 kg leaves/ha x year  
   # C content is 1001mg C in 2g of leaves. Which means each gram of leaves has 500mg of C = 0.5g of C. 
   # That means for each Kg of leaves, half is Carbon. 
   # That's 0.505kg per kg of litterfall. 
-  # These are C input kg/ha/year --Should be in MEGA g, which is 1000kg 
-  cinput_arosa <- 617*0.505/1000  # That's per year. 
-  # This neglects other inputs, such as root turnover, 
-  # animal deaths etc. 
-  # I expect an underestimation . 
   soil.thick=25  #Soil thickness (organic layer topsoil), in cm
   SOC_nveg=median(cstock25)       #Soil organic carbon in Mg/ha 
   dr_ratio_forest = 0.25
@@ -186,7 +181,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   Cinput_leading_to_observed_SOC_past_land_use = SOC_nveg/slope
   
   ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
-  
+  # ATTENTION: Where does the "batch" dataframe start? 
   # Initialisation as a forest
   batch <- mean_input
   batch$field_carbon_in <- rep(Cinput_leading_to_observed_SOC_past_land_use,12)
@@ -287,7 +282,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      PS = initialized_soil_content,
                                      tilling_factor = batch$tilling_factor[1])
         initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      }
+      } 
       initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
@@ -304,7 +299,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                                      clay = batch$clay[1],
                                      pE = batch$pE[1],
                                      PS = initialized_soil_content,
-                                     tilling_factor = batch$tilling_factor[1])
+                                     tilling_factor = batch$tilling_factor[1]) # Attention: is there any tillage in the scenarios?
       new_starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario=="current" & parcel_ID==parcel))$tot_Cinputs
