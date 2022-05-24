@@ -1,6 +1,5 @@
 ########################### AUTOMATED SOIL MODEL RUNNING SCRIPT
 # Missing automated pull of DPM/RPM ratio from input (aboveground crop/pasture/root exudates) type
-# Missing automated pull of bare soil
 # Unsure about use of soil depth in model: no effect on sensitivity analysis
 # Missing automated pull of clay content: it is not set where we will find it
 # Missing automated pull of standard errors for input parameters
@@ -22,12 +21,12 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   
   weather_data = data.frame(past_temperature=rep(NA,12))
   
-  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5")
-  weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5")
-  weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5")
-  weather_data[,c("future_temperature_rcp8.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp8.5")[13:24]
-  weather_data[,c("future_precipitation_rcp8.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp8.5")[13:24]
-  weather_data[,c("future_pevap_rcp8.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp8.5")[2]
+  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
+  weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
+  weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
+  weather_data[,c("future_temperature_rcp8.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[13:24]
+  weather_data[,c("future_precipitation_rcp8.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[13:24]
+  weather_data[,c("future_pevap_rcp8.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[2]
   
   
   ################# Pulling calculation factors
@@ -66,6 +65,22 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
   
   baseline_chosen="baseline"
+  
+  parcel_Cinputs_addition = merge(x= parcel_Cinputs, 
+                                  y= parcel_inputs %>% 
+                                    select(parcel_ID,area) %>%
+                                    mutate(farm_frac= paste(round(area/sum(area)*100),'%')), by="parcel_ID") %>% 
+    group_by(parcel_ID,farm_frac) %>% 
+    summarise(additional_Cinput_per_ha = round(tot_Cinputs[scenario=="future"] - tot_Cinputs[scenario==baseline_chosen],2), 
+              relative_increase=paste(as.character(as.integer((tot_Cinputs[scenario=="future"] 
+                                                               - tot_Cinputs[scenario==baseline_chosen])
+                                                              /tot_Cinputs[scenario==baseline_chosen]*100)),'%'),
+              additional_Cinput_total = round(unique(area)*(tot_Cinputs[scenario=="future"] - tot_Cinputs[scenario==baseline_chosen]),1))
+  parcel_Cinputs_addition = parcel_Cinputs_addition %>%
+    mutate(absolute_contibution = paste(round(100*additional_Cinput_total/sum(parcel_Cinputs_addition$additional_Cinput_total)),'%'))
+  
+  write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
+  
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   mean=c(list(rep(0,12)),
