@@ -1,6 +1,5 @@
 ########################### AUTOMATED SOIL MODEL RUNNING SCRIPT
 # Missing automated pull of DPM/RPM ratio from input (aboveground crop/pasture/root exudates) type
-# Unsure about use of soil depth in model: no effect on sensitivity analysis
 # Missing automated pull of clay content: it is not set where we will find it
 # Missing automated pull of standard errors for input parameters
 # Missing change RothC parameters to semi-arid according to Farina et al. 2013
@@ -41,12 +40,13 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   add_manure_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "additional_manure_inputs.csv"))
   animal_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "animal_inputs.csv"))
   agroforestry_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "agroforestry_inputs.csv"))
-  crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
-  pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
-  parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
   bare_field_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "bare_field_inputs.csv"))
+  crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
+  parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
+  pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
+  soil_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "soil_inputs.csv"))
   
-  ################# Calculations per parcel and scenario
+  ################# Calculations of C inputs per parcel and scenario
   parcel_Cinputs =data.frame(parcel_ID=c(),scenario=c(),add_manure_Cinputs=c(),agroforestry_Cinput=c(),animal_Cinput=c(),crop_Cinputs=c(),pasture_Cinputs=c())
   for(parcel in unique(parcel_inputs$parcel_ID)){
     for(scenario in c("current","future","baseline","previous_years")){
@@ -61,9 +61,9 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     }
   }
   parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
-  
   write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
   
+  ################# Calculations of additionnal C inputs compared to baseline per parcel and scenario
   baseline_chosen="baseline"
   
   parcel_Cinputs_addition = merge(x= parcel_Cinputs, 
@@ -78,13 +78,14 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
               additional_Cinput_total = round(unique(area)*(tot_Cinputs[scenario=="future"] - tot_Cinputs[scenario==baseline_chosen]),1))
   parcel_Cinputs_addition = parcel_Cinputs_addition %>%
     mutate(absolute_contibution = paste(round(100*additional_Cinput_total/sum(parcel_Cinputs_addition$additional_Cinput_total)),'%'))
-  
   write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
-  
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
+  # Calculating the average clay content among parcels
+  mean_clay = mean(soil_inputs$clay)
+  
   mean=c(list(rep(0,12)),
-         list(c(0.67,rep(NA,11))),
+         list(c(1.44,rep(NA,11))),
          list(as.factor(c(logical(12)))),
          list(weather_data$past_temperature),
          list(weather_data$future_temperature_rcp4.5),
@@ -93,12 +94,13 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
          list(weather_data$past_pevap),
          list(weather_data$future_pevap_rcp4.5),
          list(c(20,rep(NA,11))),
-         list(c(15,rep(NA,11))),
+         list(c(mean_clay,rep(NA,11))),
          list(c(0.75,rep(NA,11))),
          list(c(1.0,rep(NA,11))))
   colnames_ranges=c("run","dr_ratios","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","clay","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
+  
   
   sd=data.frame(field_carbon_in=0.05,
                 dr_ratios = 0.05,
@@ -106,7 +108,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
                 precip = 0.025,
                 evap = 0.025,
                 soil_thick = 0.025,
-                clay = 0.1,
+                clay = 0.025,
                 pE = 0.025,
                 tilling_factor = 0.025)
   
@@ -135,6 +137,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   # We're supposed to use Mg per ha. But I'm pretty sure this is in tons per ha. 
   cstock25<-calibration.dt.nveg$cstock_t.ha*25/calibration.dt.nveg$lower_depth
   clay=median(calibration.dt.nveg$clay_value_avg)        #Percent clay
+  
   depth = 25
   cstock= median(cstock25)
   clay.sd = sd(calibration.dt.nveg$clay_value_avg)
@@ -196,7 +199,6 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   Cinput_leading_to_observed_SOC_past_land_use = SOC_nveg/slope
   
   ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
-  # ATTENTION: Where does the "batch" dataframe start? 
   # Initialisation as a forest
   batch <- mean_input
   batch$field_carbon_in <- rep(Cinput_leading_to_observed_SOC_past_land_use,12)
@@ -236,6 +238,8 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
     farm_results_batch<-data.frame(run=c(),time=c(),SOC_farm=c(),scenario=c())
+    #Select parcel's clay content
+    mean_input$clay = (soil_inputs %>% filter(parcel_ID==parcel))$clay
     #Choice of a random factor to normally randomize input values
     batch_coef=data.frame(field_carbon_in = rnorm(1,1,sd$field_carbon_in),
                           dr_ratios = rnorm(1,1,sd$dr_ratios),
@@ -471,6 +475,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     xlab("Time")+
     ylab("Number of certificates issuable (per year)")
   print(histogram)
+  
   name<-paste("Certificates_farm_",project_name,sep = "")
   png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   print(histogram)
