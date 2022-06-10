@@ -91,12 +91,12 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   # Calculating the average clay content among parcels
   mean_clay = mean(soil_inputs$clay)
   # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
-  dr_ratio_natural = unique((natural_area_factors %>% filter(pedo_climatic_area==farm_details$pedo_climatic_area))$DMP_RPM_ratio)
+  dr_ratio_trees = unique((natural_area_factors %>% filter(pedo_climatic_area==farm_details$pedo_climatic_area))$DMP_RPM_ratio)
   dr_ratio_non_irrigated = unique((natural_area_factors %>% filter(pedo_climatic_area==farm_details$pedo_climatic_area))$dr_ratio_non_irrigated)
   dr_ratio_irrigated = unique((natural_area_factors %>% filter(pedo_climatic_area==farm_details$pedo_climatic_area))$dr_ratio_irrigated)
   # Building a mean input dataframe to feed RothC
   mean=c(list(rep(0,12)),
-         list(c(dr_ratio_natural,rep(NA,11))),
+         list(c(dr_ratio_trees,rep(NA,11))),
          list(as.factor(c(logical(12)))),
          list(weather_data$past_temperature),
          list(weather_data$future_temperature_rcp4.5),
@@ -175,7 +175,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     c_cinput_balance[i,"carboninput"]<-Cinputs[i]
     model1 <- calc_carbon_over_time(time_horizon,
                                     field_carbon_in = rep(field_carbon_in,time_horizon),
-                                    dr_ratio = rep(dr_ratio_natural,time_horizon),
+                                    dr_ratio = rep(dr_ratio_trees,time_horizon),
                                     bare = mean_input$bare,
                                     temp = mean_input$past_temp,
                                     precip = mean_input$past_precip,
@@ -201,7 +201,7 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
   time_horizon = 1000
   C0_df <- calc_carbon_over_time(time_horizon,
                                  field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                 dr_ratio = rep(dr_ratio_natural,time_horizon),
+                                 dr_ratio = rep(dr_ratio_trees,time_horizon),
                                  bare = batch$bare,
                                  temp = batch$past_temp,
                                  precip = batch$past_precip,
@@ -285,7 +285,8 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
       #Select parcel's clay content
       batch$clay = (soil_inputs %>% filter(parcel_ID==parcel))$clay
-      batch$dr_ratio = ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated)*batch_coef$dr_ratio
+      batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_trees, 
+                              ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
       # Progressive transisiton from the general forest to the specific baseline land use over 350 years
       initialized_soil_content <- nveg_soil_content
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
