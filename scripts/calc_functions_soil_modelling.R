@@ -30,7 +30,7 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
   zone=ifelse(lat_farmer<57,"Temperate","Boreal")
   trees = merge(x = agroforestry_inputs, 
                 y = filter(agroforestry_factors,climatic_zone==zone), by = "tree_species", all.x = TRUE) %>% 
-    mutate (tree_density=ifelse(is.na(tree_density)==FALSE,tree_density,ifelse(is.na(n_trees)==FALSE,n_trees/area,typical_tree_density))) %>%
+    # n_trees removed from input template # mutate (tree_density=ifelse(is.na(tree_density)==FALSE,tree_density,ifelse(is.na(n_trees)==FALSE,n_trees/area,typical_tree_density))) %>%
     mutate (tC_inputs_tree_per_ha_per_year=ifelse(is.na(tree_density)==FALSE & is.na(dbh)==FALSE & is.na(a_bg_over30)==FALSE & is.na(b_bg_over30)==FALSE & is.na(b_bg_below30)==FALSE, 
                                                   ifelse(dbh>29,tree_density*(a_bg_over30+b_bg_over30*dbh)*C_frac_dry*root_turnover_rate,
                                                          tree_density*(b_bg_below30*dbh**2.5)*C_frac_dry*root_turnover_rate),
