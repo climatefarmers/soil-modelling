@@ -189,7 +189,7 @@ calc_tilling_impact <- function(tilling_factor = 1,
   all_c_diff <- all_c %>% 
     mutate_if(is.numeric, funs(.-first(.)))
   
-  all_c_diff <- all_c_diff * tilling_factor
+  all_c_diff <- all_c_diff / tilling_factor
   
   all_c_diff <- all_c_diff %>% 
     mutate(DPM = DPM + c_init$DPM,
