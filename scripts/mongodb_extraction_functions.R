@@ -60,6 +60,11 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
   return(bale_grazing_yield+grazing_yield)
 }
 
+get_clay_content <- function(){
+  # CAUTION - NEEDS TO BE BUILT
+  return(20) #average value waiting for better, from soil maps or soil samples
+}
+
 ### GET INPUT FUNCTIONS
 
 get_add_manure_inputs = function(landUseSummaryOrPractices){
@@ -185,4 +190,42 @@ get_parcels_input = function(landUseSummaryOrPractices){
       latitude=c(as.numeric(extract_latitude_landUseSummaryOrPractices(landUseSummaryOrPractices,i)))))
   }
   return(parcels_input)
+}
+
+get_soil_inputs = function(landUseSummaryOrPractices){
+  # takes landUseSummaryOrPractices from farms collection
+  # extracts parcels input dataframe 
+  soil_inputs = data.frame(parcel_ID = c(), clay = c(), irrigation=c())
+  for (i in c(1:length(landUseSummaryOrPractices))){
+    for (j in c(0:10)){
+    soil_inputs <- rbind(soil_inputs,data.frame(
+      parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
+      clay = c(get_clay_content()),
+      irrigation = c(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$irrigation)))
+  }
+  return(soil_inputs)
+}
+
+get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_country){ 
+  # takes landUseSummaryOrPractices from farms collection, farm_country (from farmInfo) and tilling factors table
+  # extracts tilling inputs dataframe 
+  
+  # CAUTION --- SHOULD RATHER USE LOCATION AND BE BASED ON PEDOCLIMATIC ZONE
+  tilling_factor = (tilling_factors %>% filter(country == farm_country))$tilling_factor
+  minimum_tillage_factor = (tilling_factors %>% filter(country == farm_country))$minimum_tillage_factor
+  tilling_inputs = data.frame(parcel_ID = c(), scenario = c(), tilling_factor = c())
+  for (i in c(1:length(landUseSummaryOrPractices))){
+    for (j in c(0:10)){
+      bare_field_inputs_temp = 
+      for (k in c(1:12)){
+      tilling_inputs <- rbind(tilling_inputs, data.frame(
+        year_chosen = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]],
+        parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
+        scenario = c(paste('year',j,sep=""))),
+        tilling_factor = ifelse(year_chosen$tillingEvent[[k]][[1]]=="Yes", tilling_factor, 1),
+        minimum_tillage_factor = ifelse(year_chosen$minimumTillingEvent[[k]][[1]]=="Yes", minimum_tillage_factor, 1))
+      }
+    }
+  }
+  return(bare_field_inputs)
 }
