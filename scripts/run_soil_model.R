@@ -5,7 +5,7 @@
 #INIT FILE SHOULD GO AWAY
 init_file <- fromJSON(file.path("~/Stages/ClimateFarmers/soil-modelling/tech/parameter_files","init_mongoAtlas_suhas.json"))
 
-run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,init_file){
+run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zone_loc,init_file){
   
   source(file.path(soil_loc, "model_functions.R"))
   source(file.path(soil_loc, "modified_functions.R"))
@@ -40,7 +40,10 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,init_file){
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   get_bare_field_inputs(landUseSummaryOrPractices)
   parcels_input = get_parcels_input(landUseSummaryOrPractices)
-  get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_country)
+  lon_farmer <- mean(parcels_input$longitude)
+  lat_farmer <- mean(parcels_input$latitude)
+  farm_EnZ <- clime.zone.check(climatic_zone_loc, lon_farmer, lat_farmer)
+  get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
     
   # DONE add_manure_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "additional_manure_inputs.csv"))
   # DONE agroforestry_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "agroforestry_inputs.csv"))
@@ -53,8 +56,6 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,init_file){
   # DONE tilling_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "tilling_inputs.csv"))
   
   ################# Weather data pulling
-  lon_farmer <- mean(parcels_input$longitude)
-  lat_farmer <- mean(parcels_input$latitude)
   weather_data = data.frame(past_temperature=rep(NA,12))
   weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
   weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
