@@ -202,29 +202,30 @@ get_soil_inputs = function(landUseSummaryOrPractices){
       parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
       clay = c(get_clay_content()),
       irrigation = c(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$irrigation)))
+    }
   }
   return(soil_inputs)
 }
 
-get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_country){ 
+get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_EnZ){ 
   # takes landUseSummaryOrPractices from farms collection, farm_country (from farmInfo) and tilling factors table
   # extracts tilling inputs dataframe 
   
   # CAUTION --- SHOULD RATHER USE LOCATION AND BE BASED ON PEDOCLIMATIC ZONE
-  tilling_factor = (tilling_factors %>% filter(country == farm_country))$tilling_factor
+  tilling_factor = (tilling_factors %>% filter(pedo_climatic_area == farm_EnZ))$tilling_factor
   minimum_tillage_factor = (tilling_factors %>% filter(country == farm_country))$minimum_tillage_factor
   tilling_inputs = data.frame(parcel_ID = c(), scenario = c(), tilling_factor = c())
   for (i in c(1:length(landUseSummaryOrPractices))){
     for (j in c(0:10)){
       bare_field_inputs_temp = 
-      for (k in c(1:12)){
-      tilling_inputs <- rbind(tilling_inputs, data.frame(
-        year_chosen = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]],
-        parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
-        scenario = c(paste('year',j,sep=""))),
-        tilling_factor = ifelse(year_chosen$tillingEvent[[k]][[1]]=="Yes", tilling_factor, 1),
-        minimum_tillage_factor = ifelse(year_chosen$minimumTillingEvent[[k]][[1]]=="Yes", minimum_tillage_factor, 1))
-      }
+        for (k in c(1:12)){
+          tilling_inputs <- rbind(tilling_inputs, data.frame(
+            year_chosen = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]],
+            parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
+            scenario = c(paste('year',j,sep=""))),
+            tilling_factor = ifelse(year_chosen$tillingEvent[[k]][[1]]=="Yes", tilling_factor, 1),
+            minimum_tillage_factor = ifelse(year_chosen$minimumTillingEvent[[k]][[1]]=="Yes", minimum_tillage_factor, 1))
+        }
     }
   }
   return(bare_field_inputs)
