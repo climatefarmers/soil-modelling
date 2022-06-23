@@ -28,6 +28,7 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
     rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
+  grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   natural_area_factors <- read_csv(file.path(modelling_data_loc,"data", "natural_area_factors.csv")) %>%
     filter(country==farm_country) # pulling natural area data will eventually be based on more precise parameters than country
@@ -39,20 +40,22 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   get_bare_field_inputs(landUseSummaryOrPractices)
-  parcels_input = get_parcels_input(landUseSummaryOrPractices)
-  lon_farmer <- mean(parcels_input$longitude)
-  lat_farmer <- mean(parcels_input$latitude)
+  crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
+  parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
+  lon_farmer <- mean(parcel_inputs$longitude)
+  lat_farmer <- mean(parcel_inputs$latitude)
   farm_EnZ <- clime.zone.check(climatic_zone_loc, lon_farmer, lat_farmer)
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ)
   get_soil_inputs(landUseSummaryOrPractices)
   get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
-    
+  
   # DONE add_manure_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "additional_manure_inputs.csv"))
   # DONE agroforestry_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "agroforestry_inputs.csv"))
   # DONE animal_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "animal_inputs.csv"))
   # DONE bare_field_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "bare_field_inputs.csv"))
-  crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
+  # DONE crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
   # DONE parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
-  pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
+  # DONE pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
   # DONE soil_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "soil_inputs.csv"))
   # DONE tilling_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "tilling_inputs.csv"))
   
