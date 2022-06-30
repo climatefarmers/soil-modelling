@@ -283,14 +283,14 @@ run_soil_model <- function(soil_loc,project_loc,project_name,modelling_data_loc,
     for(i in c(1:nrow(parcel_inputs))){
       parcel = parcel_inputs$parcel_ID[i]
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
-      #Select parcel's clay content
-      batch$clay = (soil_inputs %>% filter(parcel_ID==parcel))$clay
-      batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_trees, 
-                              ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
       # Progressive transisiton from the general forest to the specific baseline land use over 350 years
       initialized_soil_content <- nveg_soil_content
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
       time_horizon = 350
+      #Select parcel's clay content
+      batch$clay = (soil_inputs %>% filter(parcel_ID==parcel))$clay
+      batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_trees, 
+                              ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
       for(i in c(1:time_horizon)){
         batch$field_carbon_in <- (time_horizon-i)/time_horizon*Cinput_leading_to_observed_SOC_past_land_use+
           i/time_horizon*(batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$tot_Cinputs
