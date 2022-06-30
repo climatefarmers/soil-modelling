@@ -11,6 +11,7 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
   source(file.path(soil_loc, "modified_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"))
+  source(file.path(soil_loc, "scripts/Climatic_zone_check_function.R"))
   source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
   
   connection_string = init_file$connection_string
