@@ -11,7 +11,7 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
   source(file.path(soil_loc, "modified_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"))
-  source(file.path(soil_loc, "scripts/Climatic_zone_check_function.R"))
+  source(file.path(modelling_data_loc, "scripts/Climatic_zone_check_function.R"))
   source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
   
   connection_string = init_file$connection_string
@@ -306,13 +306,14 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
     for(i in c(1:nrow(parcel_inputs))){
       parcel = parcel_inputs$parcel_ID[i]
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
+      # Progressive transisiton from the general forest to the specific baseline land use over 350 years
+      initialized_soil_content <- nveg_soil_content
+      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
       #Select parcel's clay content
       batch$clay = (soil_inputs %>% filter(parcel_ID==parcel))$clay
       batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario=="baseline" & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_trees, 
                               ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
-      # Progressive transisiton from the general forest to the specific baseline land use over 350 years
-      initialized_soil_content <- nveg_soil_content
-      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
+      # Anthropic influence starts
       time_horizon = 350
       for(i in c(1:time_horizon)){
         batch$field_carbon_in <- (time_horizon-i)/time_horizon*Cinput_leading_to_observed_SOC_past_land_use+
@@ -524,7 +525,7 @@ run_soil_model <- function(soil_loc,modelling_data_loc,weatherDB_loc,climatic_zo
   # CAUTION -> if new carbonresults_collection are empty, use $insert()
   carbonresults_collection$update('{}',paste('{"$set":{"farmId":"',farms_everything$farmInfo$farmId,'"}}',sep=""))
   for (i in c(1:10)){
-    carbonresults_collection$update('{}',paste('{"$set":{"year',i,'": ',step_in_table_final$yearly_certificates_mean[i],'}}',sep=""))
+    carbonresults_collection$update('{}',paste('{"$set":{"year',i,'": ',round(step_in_table_final$yearly_certificates_mean[i]),'}}',sep=""))
   }
   
 }
