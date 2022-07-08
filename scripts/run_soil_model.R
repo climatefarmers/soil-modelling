@@ -1,5 +1,13 @@
 run_soil_model <- function(init_file_path, farmId = NA, JSONfile = NA){
   
+  init_file <- fromJSON(init_file_path)
+  soil_loc <-init_file$soil_loc
+  project_loc <- init_file$project_loc
+  project_name <- init_file$project_name
+  modelling_data_loc <- init_file$modelling_data_loc
+  weatherDB_loc <- init_file$weatherDB_loc
+  climatic_zone_loc <- init_file$climatic_zone_loc
+  
   if(is.na(farmId)==TRUE){
     if(is.na(JSONfile)==TRUE){stop("No farmId neither JSON files were feed to the model")}
     JSONfile_entered = TRUE
