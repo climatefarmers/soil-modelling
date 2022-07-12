@@ -213,19 +213,18 @@ get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_E
   
   # CAUTION --- SHOULD RATHER USE LOCATION AND BE BASED ON PEDOCLIMATIC ZONE
   tilling_factor = (tilling_factors %>% filter(pedo_climatic_area == farm_EnZ))$tilling_factor
-  minimum_tillage_factor = (tilling_factors %>% filter(country == farm_country))$minimum_tillage_factor
+  minimum_tillage_factor = (tilling_factors %>% filter(pedo_climatic_area == farm_EnZ))$minimum_tillage_factor
   tilling_inputs = data.frame(parcel_ID = c(), scenario = c(), tilling_factor = c())
   for (i in c(1:length(landUseSummaryOrPractices))){
     for (j in c(0:10)){
-      bare_field_inputs_temp = 
-        for (k in c(1:12)){
-          tilling_inputs <- rbind(tilling_inputs, data.frame(
-            year_chosen = c(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]),
-            parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
-            scenario = c(paste('year',j,sep=""))),
-            tilling_factor = ifelse(year_chosen$tillingEvent[[k]][[1]]=="Yes", tilling_factor, 1),
-            minimum_tillage_factor = ifelse(year_chosen$minimumTillingEvent[[k]][[1]]=="Yes", minimum_tillage_factor, 1))
-        }
+      year_chosen = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]
+      for (k in c(1:12)){
+        tilling_inputs <- rbind(tilling_inputs, data.frame(
+          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
+          scenario = c(paste('year',j,sep="")),
+          tilling_factor = c(ifelse(year_chosen$tillingEvent[[1]][[k]]=="Yes", tilling_factor, 
+                                  ifelse(year_chosen$minimumTillingEvent[[1]][[k]]=="Yes", minimum_tillage_factor, 1)))))
+      }
     }
   }
   return(bare_field_inputs)
