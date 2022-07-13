@@ -58,9 +58,9 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
 }
 
 get_clay_content <- function(){
-  # CAUTION - NEEDS TO BE BUILT
+  
   return(20) #average value waiting for better, from soil maps or soil samples
-}
+}# CAUTION - NEEDS TO BE BUILT
 
 ### GET INPUT FUNCTIONS
 
@@ -111,14 +111,14 @@ get_agroforestry_inputs = function(landUseSummaryOrPractices){
                                    tree_density = c(), area = c())
   for (i in c(1:length(landUseSummaryOrPractices))){
     for (j in c(0:10)){
-      for (k in c(1:3)){
-        year_chosen = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]
+      typeOfTrees = drop_na(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$typeOfTrees[[1]])
+      for (k in c(1:nrow(typeOfTrees))){
         agroforestry_inputs <- rbind(agroforestry_inputs,data.frame(
           parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
           scenario = c(paste('year',j,sep="")), 
-          tree_species = c(year_chosen$species[[k]]),
-          dbh = c(year_chosen$typeOfTrees[[k]]$treeAvgDBH), 
-          tree_density = c(year_chosen$typeOfTrees[[k]]$avgNoOfTrees), 
+          tree_species = c(typeOfTrees$treeName[[k]]),
+          dbh = c(as.numeric(typeOfTrees$treeAvgDBH[[k]])), 
+          tree_density = c(as.numeric(typeOfTrees$avgNoOfTrees[[k]])), 
           area = c(as.numeric(landUseSummaryOrPractices[[i]]$area)/10000)))
       }
     }
@@ -184,7 +184,7 @@ get_bare_field_inputs = function(landUseSummaryOrPractices){
                                           scenario = c(paste('year',j,sep="")))
       for (k in c(1:12)){
         bare_field_inputs_temp[[paste("bare_profile_",k,sep="")]] = ifelse(
-          year_chosen$bareSoilFallow[[k]][[1]]=="Yes", TRUE, FALSE)
+          year_chosen$bareSoilFallow[[1]][[k]]=="Yes", TRUE, FALSE)
       }
       bare_field_inputs <- rbind(bare_field_inputs,bare_field_inputs_temp)
     }
@@ -241,6 +241,8 @@ get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_E
       }
     }
   }
+  tilling_inputs = tilling_inputs %>% group_by(parcel_ID, scenario) %>%
+    summarise(tilling_factor = max(tilling_factor)) # ATM JUST TAKE THE MAX IMPACT EVENT
   return(bare_field_inputs)
 }
 
