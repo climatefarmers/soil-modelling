@@ -7,7 +7,7 @@ extract_latitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices
   #extracts the mean latitude of parcel's corners
   latitudes = c()
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$coordinates))){
-    latitudes <- append(latitudes,landUseSummaryOrPractices[[parcel_index]]$coordinates[[i]][[2]])}
+    latitudes <- append(latitudes,landUseSummaryOrPractices[[parcel_index]]$coordinates[[1]][[i,2]])}
   return(mean(latitudes))
 }
 
@@ -16,7 +16,7 @@ extract_longitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractice
   #extracts the mean longitude of parcel's corners
   longitudes = c()
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$coordinates))){
-    longitudes <- append(longitudes,landUseSummaryOrPractices[[parcel_index]]$coordinates[[i]][[1]])}
+    longitudes <- append(longitudes,landUseSummaryOrPractices[[parcel_index]]$coordinates[[1]][[i,1]])}
   return(mean(longitudes))
 }
 
