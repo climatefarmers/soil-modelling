@@ -45,9 +45,9 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
   bale_grazing_yield = 0
   grazing_yield = 0
   if (landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$baleGrazing=="Yes"){
-      bale_grazing_yield = bale_grazing_yield + as.numeric(landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$hayStrawApplication)*
-        as.numeric(landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing)
-    }
+    bale_grazing_yield = bale_grazing_yield + as.numeric(landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$hayStrawApplication)*
+      as.numeric(landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing)
+  }
   for (k in c(1:12)){
     if (landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$grazing[[1]][[k]]=="Yes"){
       grazing_yield = grazing_yield + as.numeric(landUseSummaryOrPractices[[parcel_index]][[paste('year',year,sep="")]]$harvestGrazingYiel[[1]][[k]])
@@ -133,25 +133,23 @@ get_animal_inputs = function(landUseSummaryOrPractices,livestock){
                              area = c(), grazing_management = c(), productivity = c())
   for (i in c(1:length(landUseSummaryOrPractices))){
     status ="currentManagement"
-      for (k in c(1:nrow(livestock[[status]][[1]]))){
-        #DISTINCTION TO BE MADE BETWEEN ONE OR SEVERAL SPECIES ON DATA STRUCTURE/CALLING
-        animal_inputs <- rbind(animal_inputs,data.frame(
-          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
-          scenario = c(paste('year',0,sep="")), 
-          species = c(livestock[[status]][[1]]$species[[k]]),
-          # n_animal is the total number of animal from a farm weighted by grazing yield fraction of the parcel
-          n_animals = c(as.numeric(livestock[[status]][[1]]$numberOfHeads[[k]])*
-                          extract_grazing_amount_parcel_i(landUseSummaryOrPractices,i,0)/
-                          extract_total_grazing_amount(landUseSummaryOrPractices,0)), 
-          grazing_days = c(as.numeric(livestock[[status]][[1]]$grazingOrPasturedDaysPerYear[[k]])), 
-          area = c(as.numeric(landUseSummaryOrPractices[[i]]$area)/10000),
-          grazing_management = c(livestock[[status]][[1]]$management[[k]]), 
-          productivity = c(livestock[[status]][[1]]$management[[k]]))) # CAUTION, SHOULD PRODUCTIVITY INFO COMES FROM FARMER OR DEDUCED FROM MANAGEMENT?
-      }
+    for (k in c(1:nrow(livestock[[status]][[1]]))){
+      animal_inputs <- rbind(animal_inputs,data.frame(
+        parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
+        scenario = c(paste('year',0,sep="")), 
+        species = c(livestock[[status]][[1]]$species[[k]]),
+        # n_animal is the total number of animal from a farm weighted by grazing yield fraction of the parcel
+        n_animals = c(as.numeric(livestock[[status]][[1]]$numberOfHeads[[k]])*
+                        extract_grazing_amount_parcel_i(landUseSummaryOrPractices,i,0)/
+                        extract_total_grazing_amount(landUseSummaryOrPractices,0)), 
+        grazing_days = c(as.numeric(livestock[[status]][[1]]$grazingOrPasturedDaysPerYear[[k]])), 
+        area = c(as.numeric(landUseSummaryOrPractices[[i]]$area)/10000),
+        grazing_management = c(livestock[[status]][[1]]$management[[k]]), 
+        productivity = c(livestock[[status]][[1]]$management[[k]]))) # CAUTION, SHOULD PRODUCTIVITY INFO COMES FROM FARMER OR DEDUCED FROM MANAGEMENT?
+    }
     status ="futureManagement"
     for (year in c(1:10)){
       for (k in c(1:nrow(livestock[[status]][[1]]))){
-        #DISTINCTION TO BE MADE BETWEEN ONE OR SEVERAL SPECIES ON DATA STRUCTURE/CALLING
         animal_inputs <- rbind(animal_inputs,data.frame(
           parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
           scenario = c(paste('year',year,sep="")), 
@@ -192,6 +190,75 @@ get_bare_field_inputs = function(landUseSummaryOrPractices){
   return(bare_field_inputs)
 }
 
+get_crop_inputs <- function(landUseSummaryOrPractices){
+  #takes a landUseSummaryOrPractices from farms collection
+  #extracts harvesting yield and residue left on site
+  endWinterSeason = 5 # month index
+  endSummerSeason = 10 # month index
+  crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), n_fixing_frac = c(), 
+                           dry_yield = c(), fresh_yield = c(), dry_residue = c(), fresh_residue = c(), 
+                           dry_agb_peak = c(), fresh_agb_peak = c() )
+  for (i in c(1:length(landUseSummaryOrPractices))){
+    for (j in c(0:10)){
+      # monthly yield and residue
+      monthly_harvesting_yield = data.frame(crop=rep('-',12), coverCrop=rep('No',12), productiveFallow=rep('No',12),
+                                            harvesting_yield=rep(0,12),residue_left=rep(0,12))
+      monthly_harvesting_yield$crop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]]
+      monthly_harvesting_yield$coverCrop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$coverCropMonthlyData[[1]]
+      monthly_harvesting_yield$productiveFallow = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$productiveFallow[[1]]
+      monthly_harvesting_yield$grazing = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]]
+      monthly_harvesting_yield$harvesting_yield = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYield[[1]])
+      monthly_harvesting_yield$residue_left = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]])
+      # fresh or dry tOM/ha
+      dryOrFresh = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$yieldsResiduesDryOrFresh
+      # case of cash crop with no grazing
+      for (crop_chosen in unique(monthly_harvesting_yield$crop)){
+        if (crop_chosen!='-'){ #cash crops
+          harvesting_yield = sum((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield) #all cash crops are harvested
+          residue_left = sum((monthly_harvesting_yield %>% filter(crop==crop_chosen & grazing!="Yes"))$residue_left) #if grazed, counted in pasture inputs
+          crop_inputs <- rbind(crop_inputs, 
+                               data.frame(scenario = c(paste('year',j,sep="")),
+                                          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
+                                          crop = crop_chosen,
+                                          n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
+                                          dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
+                                          fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
+                                          dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left,0)), 
+                                          fresh_residue = c(ifelse(dryOrFresh=="Fresh", residue_left,0)), 
+                                          dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield+
+                                                                                           (monthly_harvesting_yield %>% filter(crop==crop_chosen))$residue_left),0)), 
+                                          fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh",  max((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield+
+                                                                                                (monthly_harvesting_yield %>% filter(crop==crop_chosen))$residue_left),0))))
+          
+          
+        }
+        
+        if (crop_chosen=='-'){# no cash crop
+          # with no grazing -> assumed to be generic grass
+          harvesting_yield = sum((monthly_harvesting_yield %>% filter(crop==crop_chosen & grazing!="Yes"))$harvesting_yield)
+          residue_left = sum((monthly_harvesting_yield %>% filter(crop==crop_chosen & grazing!="Yes"))$residue_left)
+          crop_inputs <- rbind(crop_inputs, 
+                               data.frame(scenario = c(paste('year',j,sep="")),
+                                          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
+                                          crop = "Non-N-fixing dry forages",
+                                          n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
+                                          dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
+                                          fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
+                                          dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left,0)), 
+                                          fresh_residue = c(ifelse(dryOrFresh=="Fresh", residue_left,0)), 
+                                          dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield+
+                                                                                           (monthly_harvesting_yield %>% filter(crop==crop_chosen))$residue_left),0)), 
+                                          fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh", max((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield+
+                                                                                               (monthly_harvesting_yield %>% filter(crop==crop_chosen))$residue_left),0))))
+          
+          
+        }
+      }
+    }
+  }
+  return(crop_inputs)
+}
+
 get_parcel_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts parcels input dataframe 
@@ -206,16 +273,83 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
   return(parcel_inputs)
 }
 
+get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ){
+  #takes a landUseSummaryOrPractices from farms collection
+  #extracts yield and residues left on site when grazing happening
+  pasture_efficiency_potential_difference = unique((grazing_factors %>% filter(pedo_climatic_area==farm_EnZ))$pasture_efficiency_potential_difference)
+  nbYears_initialLandUse_wasApplied = as.numeric(landUseSummaryOrPractices[[parcel_index]][['year0']]$yearCroppingBegan)
+  previous_AMP_years = ifelse(landUseSummaryOrPractices[[parcel_index]][['year0']]$adaptiveMultiPaddockGrazing$usage=="Yes", nbYears_initialLandUse_wasApplied, 0) 
+  current_AMP_years = 0
+  endWinterSeason = 5 # month index
+  endSummerSeason = 10 # month index
+  pasture_inputs = data.frame(scenario = c(), parcel_ID = c(), grass = c(), perennial_frac = c(), n_fixing_frac = c(), 
+                              dry_yield = c(), fresh_yield = c(), dry_residual = c(), fresh_residual = c(), 
+                              dry_agb_peak = c(), fresh_agb_peak = c(), pasture_efficiency = c())
+  for (i in c(1:length(landUseSummaryOrPractices))){
+    for (j in c(0:10)){
+      #counting AMP years to calculate related efficiency
+      current_AMP_years = current_AMP_years + ifelse(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$adaptiveMultiPaddockGrazing$usage=="Yes",
+                                                     1, ifelse(previous_AMP_years+current_AMP_years>0,-1,0)) # efficiency is assumed to be reversable
+      # calculate relating efficiency if it was a permanent grassland
+      pasture_efficiency = 1 + pasture_efficiency_potential_difference *
+        (exp(-0.36*previous_AMP_years)-exp(-0.36*(previous_AMP_years+current_AMP_years)))#0.36 factor allows to reach 2/3 of AMP efficiency increase after 3 years of AMP
+      # selecting the right type of landuse were grazing manangement affects most pasture efficiency 
+      if(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$landUseType=='Arable Crops'){
+        pasture_efficiency= mean(1,pasture_efficiency) # assumption that grazing management impacts less arable crops
+      }
+      # monthly yield and residue
+      monthly_grazing_yield = data.frame(grazing_yield=rep(0,12),residue_left=rep(0,12))
+      for (k in c(1:12)){
+        # grazing without cash crop
+        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
+            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]=="-"){ #cash crop not grazed
+          monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYiel[[1]][[k]])
+          monthly_grazing_yield$residue_left[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
+        }
+        # grazing cash crop residues
+        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
+            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]!="-"){ #cash crop not grazed but residue might be
+          monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
+        }
+      }
+      # biomass peak that will be used to calculate root biomass
+      indexWinterSeasonPeak = which.max(monthly_grazing_yield$grazing_yield[c(1:endWinterSeason,(endSummerSeason+1):12)])
+      indexSummerSeasonPeak = which.max(monthly_grazing_yield$grazing_yield[c((endWinterSeason+1):endSummerSeason)])
+      # fresh or dry tOM/ha
+      dryOrFresh = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$yieldsResiduesDryOrFresh
+      # building df for C inputs calculation
+      pasture_inputs <- rbind(pasture_inputs, 
+                              data.frame(scenario = c(paste('year',j,sep="")),
+                                         parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
+                                         grass = c("Generic grasses"),
+                                         perennial_frac = c(ifelse(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$landUseType=='Arable Crops', 
+                                                                   0, (previous_AMP_years+current_AMP_years)*0.02)), #CAUTION assumption that perennials increase linearly with AMP by a rate of 2% per year
+                                         n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
+                                         dry_yield = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$grazing_yield),0)), 
+                                         fresh_yield = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$grazing_yield),0)), 
+                                         dry_residual = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$residue_left),0)), 
+                                         fresh_residual = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$residue_left),0)), 
+                                         dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max((monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[c(1:endWinterSeason,endSummerSeason:12)]) +
+                                                                   max((monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[c(endWinterSeason:endSummerSeason)]),0)), 
+                                         fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh", max((monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[c(1:endWinterSeason,endSummerSeason:12)]) +
+                                                                     max((monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[c(endWinterSeason:endSummerSeason)]),0)), 
+                                         pasture_efficiency = c(pasture_efficiency) ))
+    }
+  }
+  return(pasture_inputs)
+}
+
 get_soil_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts parcels input dataframe 
-  soil_inputs = data.frame(parcel_ID = c(), clay = c(), irrigation=c())
+  soil_inputs = data.frame(parcel_ID = c(), scenario = c(), clay = c(), irrigation=c())
   for (i in c(1:length(landUseSummaryOrPractices))){
     for (j in c(0:10)){
-    soil_inputs <- rbind(soil_inputs,data.frame(
-      parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
-      clay = c(get_clay_content()),
-      irrigation = c(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$irrigation)))
+      soil_inputs <- rbind(soil_inputs,data.frame(
+        parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
+        scenario = c(paste('year',j,sep="")),
+        clay = c(get_clay_content()),
+        irrigation = c(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$irrigation)))
     }
   }
   return(soil_inputs)
@@ -237,138 +371,11 @@ get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_E
           parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
           scenario = c(paste('year',j,sep="")),
           tilling_factor = c(ifelse(year_chosen$tillingEvent[[1]][[k]]=="Yes", tilling_factor, 
-                                  ifelse(year_chosen$minimumTillingEvent[[1]][[k]]=="Yes", minimum_tillage_factor, 1)))))
+                                    ifelse(year_chosen$minimumTillingEvent[[1]][[k]]=="Yes", minimum_tillage_factor, 1)))))
       }
     }
   }
   tilling_inputs = tilling_inputs %>% group_by(parcel_ID, scenario) %>%
     summarise(tilling_factor = max(tilling_factor)) # ATM JUST TAKE THE MAX IMPACT EVENT
-  return(bare_field_inputs)
-}
-
-get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ){
-  #takes a landUseSummaryOrPractices from farms collection
-  #extracts yield and residues left on site when grazing happening
-  pasture_efficiency_potential_difference = unique((grazing_factors %>% filter(pedo_climatic_area==farm_EnZ))$pasture_efficiency_potential_difference)
-  nbYears_initialLandUse_wasApplied = as.numeric(landUseSummaryOrPractices[[parcel_index]][['year0']]$yearCroppingBegan)
-  previous_AMP_years = ifelse(landUseSummaryOrPractices[[parcel_index]][['year0']]$adaptiveMultiPaddockGrazing$usage=="Yes", nbYears_initialLandUse_wasApplied, 0) 
-  current_AMP_years = 0
-  endWinterSeason = 5 # month index
-  endSummerSeason = 10 # month index
-  pasture_inputs = data.frame(scenario = c(), parcel_ID = c(), grass = c(), perennial_frac = c(), n_fixing_frac = c(), 
-                              dry_yield = c(), fresh_yield = c(), dry_residual = c(), fresh_residual = c(), 
-                              ag_dry_peak = c(), ag_fresh_peak = c(), pasture_efficiency = c())
-  for (i in c(1:length(landUseSummaryOrPractices))){
-    for (j in c(0:10)){
-      #counting AMP years to calculate related efficiency
-      current_AMP_years = current_AMP_years + ifelse(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$adaptiveMultiPaddockGrazing$usage=="Yes",
-                                 1, ifelse(previous_AMP_years+current_AMP_years>0,-1,0)) # efficiency is assumed to be reversable
-      # calculate relating efficiency if it was a permanent grassland
-      pasture_efficiency = 1 + pasture_efficiency_potential_difference *
-        (exp(-0.36*previous_AMP_years)-exp(-0.36*(previous_AMP_years+current_AMP_years)))#0.36 factor allows to reach 2/3 of AMP efficiency increase after 3 years of AMP
-      # selecting the right type of landuse were grazing manangement affects most pasture efficiency 
-      if(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$landUseType=='Arable Crops'){
-        pasture_efficiency= mean(1,pasture_efficiency) # assumption that grazing management impacts less arable crops
-        }
-      # monthly yield and residue
-      monthly_grazing_yield = data.frame(grazing_yield=rep(0,12),residue_left=rep(0,12))
-      for (k in c(1:12)){
-        # grazing without cash crop
-        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
-            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]=="-"){ #cash crop not grazed
-          monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYiel[[1]][[k]])
-          monthly_grazing_yield$residue_left[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
-        }
-        # grazing cash crop residues
-        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
-            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]!="-"){ #cash crop not grazed but residue might be
-          monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
-        }
-      }
-      # biomass peak that will be used to calculate root biomass
-      indexWinterSeasonPeak = which.max(monthly_grazing_yield$grazing_yield[c(1:endWinterSeason,(endSummerSeason+1):12)])
-      indexSummerSeasonPeak = which.max(monthly_grazing_yield$grazing_yield[c((endWinterSeason+1):endSummerSeason)])
-      # building df for C inputs calculation
-      dryOrFresh = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$yieldsResiduesDryOrFresh
-      pasture_inputs <- rbind(pasture_inputs, 
-                              data.frame(scenario = c(paste('year',j,sep="")),
-                                         parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
-                                         perennial_frac = c(ifelse(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$landUseType=='Arable Crops', 
-                                                                   0, (previous_AMP_years+current_AMP_years)*0.02)), #CAUTION assumption that perennials increase linearly with AMP by a rate of 2% per year
-                                         n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
-                                         dry_yield = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$grazing_yield),0)), 
-                                         fresh_yield = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$grazing_yield),0)), 
-                                         dry_residual = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$residue_left),0)), 
-                                         fresh_residual = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$residue_left),0)), 
-                                         ag_dry_peak = c(ifelse(dryOrFresh=="Dry", (monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[endWinterSeason] +
-                                                                  (monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[endSummerSeason],0)), 
-                                         ag_fresh_peak = c(ifelse(dryOrFresh=="Fresh", (monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[endWinterSeason] +
-                                                                    (monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left)[endSummerSeason],0)), 
-                                         pasture_efficiency = c(pasture_efficiency) ))
-    }
-  }
-  return(pasture_inputs)
-}
-
-get_crop_inputs <- function(landUseSummaryOrPractices){
-  #takes a landUseSummaryOrPractices from farms collection
-  #extracts harvesting yield and residue left on site
-  endWinterSeason = 5 # month index
-  endSummerSeason = 10 # month index
-  crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), n_fixing_frac = c(), 
-                           dry_yield = c(), fresh_yield = c(), dry_residual = c(), fresh_residual = c(), 
-                           ag_dry_peak = c(), ag_fresh_peak = c() )
-  for (i in c(1:length(landUseSummaryOrPractices))){
-    for (j in c(0:10)){
-      # monthly yield and residue
-      monthly_harvesting_yield = data.frame(crop=rep('-',12), coverCrop=rep('No',12), productiveFallow=rep('No',12),
-                                            harvesting_yield=rep(0,12),residue_left=rep(0,12))
-      monthly_harvesting_yield$crop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]]
-      monthly_harvesting_yield$coverCrop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$coverCropMonthlyData[[1]]
-      monthly_harvesting_yield$productiveFallow = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$productiveFallow[[1]]
-      monthly_harvesting_yield$grazing = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]]
-      monthly_harvesting_yield$harvesting_yield = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYield[[1]])
-      monthly_harvesting_yield$residue_left = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]])
-      # case of cash crop with no grazing
-      for (crop in unique(monthly_harvesting_yield$crop)){
-        if (crop!='-'){ #cash crops
-          harvesting_yield = sum((monthly_harvesting_yield %>% filter(crop==crop))$harvesting_yield) #all cash crops are harvested
-          residue_left = sum((monthly_harvesting_yield %>% filter(crop==crop & grazing!="Yes"))$residue_left) #if grazed, counted in pasture inputs
-          crop_inputs <- rbind(crop_inputs, 
-                               data.frame(scenario = c(paste('year',j,sep="")),
-                                          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
-                                          crop = crop,
-                                          n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
-                                          dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
-                                          fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
-                                          dry_residual = c(ifelse(dryOrFresh=="Dry", residue_left,0)), 
-                                          fresh_residual = c(ifelse(dryOrFresh=="Fresh", residue_left,0)), 
-                                          ag_dry_peak = c(ifelse(dryOrFresh=="Dry", max(harvesting_yield),0)), 
-                                          ag_fresh_peak = c(ifelse(dryOrFresh=="Fresh",  max(harvesting_yield),0))))
-          
-          
-        }
-        
-        if (crop=='-'){# no cash crop
-          # with no grazing -> assumed to be generic grass
-          harvesting_yield = sum((monthly_harvesting_yield %>% filter(crop==crop & grazing!="Yes"))$harvesting_yield)
-          residue_left = sum((monthly_harvesting_yield %>% filter(crop==crop & grazing!="Yes"))$residue_left)
-          crop_inputs <- rbind(crop_inputs, 
-                               data.frame(scenario = c(paste('year',j,sep="")),
-                                          parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName),
-                                          crop = "Generic annual grasses",
-                                          n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
-                                          dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
-                                          fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
-                                          dry_residual = c(ifelse(dryOrFresh=="Dry", residue_left,0)), 
-                                          fresh_residual = c(ifelse(dryOrFresh=="Fresh", residue_left,0)), 
-                                          ag_dry_peak = c(ifelse(dryOrFresh=="Dry", max(harvesting_yield),0)), 
-                                          ag_fresh_peak = c(ifelse(dryOrFresh=="Fresh",  max(harvesting_yield),0))))
-          
-          
-        }
-      }
-    }
-  }
-  return(crop_inputs)
+  return(tilling_inputs)
 }
