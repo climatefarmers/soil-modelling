@@ -34,9 +34,9 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
     mutate (tC_inputs_tree_per_ha_per_year=ifelse(is.na(tree_density)==FALSE & is.na(dbh)==FALSE & is.na(a_bg_over30)==FALSE & is.na(b_bg_over30)==FALSE & is.na(b_bg_below30)==FALSE, 
                                                   ifelse(dbh>29,tree_density*(a_bg_over30+b_bg_over30*dbh)*C_frac_dry*root_turnover_rate,
                                                          tree_density*(b_bg_below30*dbh**2.5)*C_frac_dry*root_turnover_rate),
-                                           ifelse(is.na(tree_density)==FALSE & is.na(forest_biomass_kg)==FALSE & is.na(rs_ratio)==FALSE, 
-                                                  tree_density*forest_biomass_kg*rs_ratio*C_frac_dry*root_turnover_rate*1e-3,
-                                           paste("Insufficient input data for",tree_species))))
+                                                  ifelse(is.na(tree_density)==FALSE & is.na(forest_biomass_kg)==FALSE & is.na(rs_ratio)==FALSE, 
+                                                         tree_density*forest_biomass_kg*rs_ratio*C_frac_dry*root_turnover_rate*1e-3,
+                                                         paste("Insufficient input data for",tree_species))))
   tC_inputs_per_ha_per_year = sum(as.numeric(trees$tC_inputs_tree_per_ha_per_year))
   return(tC_inputs_per_ha_per_year)
 }
@@ -50,20 +50,20 @@ get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_
     mutate(dry_yield = ifelse(is.na(dry_yield)==FALSE, dry_yield, 
                               ifelse(is.na(fresh_yield)==FALSE,fresh_yield*dry,
                                      NA))) %>%
-    mutate(ag_dry_peak = ifelse(is.na(ag_dry_peak)==FALSE, ag_dry_peak, 
-                                ifelse(is.na(ag_fresh_peak)==FALSE,ag_fresh_peak*dry,
-                                       NA)))
+    mutate(dry_agb_peak = ifelse(is.na(dry_agb_peak)==FALSE, dry_agb_peak, 
+                                 ifelse(is.na(fresh_agb_peak)==FALSE,fresh_agb_peak*dry,
+                                        NA)))
   if(nrow(pasture_inputs)==0){
     return(0)}
   annual_pastures <- merge(x = pasture_inputs, 
                            y = filter(pasture_data, pasture_type=="annual"), by = "grass", all.x = TRUE) %>% 
     mutate(c_input_shoot = (dry_residual+dry_yield*0.15)*pasture_efficiency*dry_c) %>%
-    mutate(c_input_root = pasture_efficiency*ag_dry_peak*r_s_ratio*dry_c*bg_turnover) %>%
+    mutate(c_input_root = pasture_efficiency*dry_agb_peak*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)
   perennial_pastures <- merge(x = pasture_inputs,
                               y = filter(pasture_data, pasture_type=="perennial"), by = "grass", all.x = TRUE) %>% 
-    mutate(c_input_shoot= (dry_yield*0.15+pasture_efficiency*ag_dry_peak*ag_turnover)*dry_c) %>%
-    mutate(c_input_root= pasture_efficiency*ag_dry_peak*r_s_ratio*dry_c*bg_turnover) %>%
+    mutate(c_input_shoot= (dry_yield*0.15+pasture_efficiency*dry_agb_peak*ag_turnover)*dry_c) %>%
+    mutate(c_input_root= pasture_efficiency*dry_agb_peak*r_s_ratio*dry_c*bg_turnover) %>%
     mutate(c_inputs = c_input_shoot + c_input_root)
   tC_inputs_per_ha_per_year = sum(perennial_pastures$c_inputs*perennial_pastures$perennial_frac,na.rm=T)+
     sum(annual_pastures$c_inputs*(1-annual_pastures$perennial_frac),na.rm=T)
@@ -77,16 +77,16 @@ get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, p
     return(0)}
   crops <- crops %>%
     mutate(c_shoot= ifelse(is.na(dry_residue)==FALSE, dry_residue*dry_c,
-                                 ifelse(is.na(fresh_residue)==FALSE, fresh_residue*dry*dry_c,
-                                        ifelse(is.na(dry_residue)==TRUE & is.na(fresh_residue)==TRUE & is.na(residue_frac)==TRUE,NA,
-                                               ifelse(is.na(dry_yield)==FALSE, dry_yield*dry_c*residue_frac,
-                                                      ifelse(is.na(fresh_yield)==FALSE, fresh_yield*dry*dry_c*residue_frac,
-                                                             ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*residue_frac, 
-                                                                    NA))))))) %>% # Warning should be implemented
-    mutate(c_root= ifelse(is.na(dry_agb_at_peak)==FALSE, dry_agb_at_peak*dry_c*r_s_ratio,
-                          ifelse(is.na(fresh_agb_at_peak)==FALSE, fresh_agb_at_peak*dry*dry_c*r_s_ratio,
-                                                            ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*r_s_ratio,
-                                                                   NA)))) %>% # Warning should be implemented
+                           ifelse(is.na(fresh_residue)==FALSE, fresh_residue*dry*dry_c,
+                                  ifelse(is.na(dry_residue)==TRUE & is.na(fresh_residue)==TRUE & is.na(residue_frac)==TRUE,NA,
+                                         ifelse(is.na(dry_yield)==FALSE, dry_yield*dry_c*residue_frac,
+                                                ifelse(is.na(fresh_yield)==FALSE, fresh_yield*dry*dry_c*residue_frac,
+                                                       ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*residue_frac, 
+                                                              NA))))))) %>% # Warning should be implemented
+    mutate(c_root= ifelse(is.na(dry_agb_peak)==FALSE, dry_agb_peak*dry_c*r_s_ratio,
+                          ifelse(is.na(fresh_agb_peak)==FALSE, fresh_agb_peak*dry*dry_c*r_s_ratio,
+                                 ifelse(is.na(ag_dm_peak)==FALSE, ag_dm_peak*dry_c*r_s_ratio,
+                                        NA)))) %>% # Warning should be implemented
     mutate(c_inputs= c_shoot*s_turnover + c_root*r_turnover)
   
   # if (is.na(crops$dry_residue)==TRUE & is.na(crops$fresh_residue)==TRUE & is.na(crops$residue_frac)==TRUE){
