@@ -1,6 +1,5 @@
-run_soil_model <- function(init_file_path, farmId = NA, JSONfile = NA){
+run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
-  init_file <- fromJSON(init_file_path)
   soil_loc <-init_file$soil_loc
   project_loc <- init_file$project_loc
   project_name <- init_file$project_name

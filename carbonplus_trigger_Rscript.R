@@ -4,26 +4,27 @@ args = commandArgs(trailingOnly=FALSE)
 ####################################################################
 # Main script to trigger results generation and upload
 # Commandline arguments should be:
+# - init_file
 # - farmId
-# - eventually init_file_path ?
 ####################################################################
 
 if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, mongolite, ggplot2, dplyr, tidyr, tidyverse, soilassessment, deSolve, readr, pracma, jsonlite, kableExtra)
 
-soilModelling_RepositoryPath <- init_file_path$soilModellingRepositoryPath
-CO2emissions_RepositoryPath <- init_file_path$soilModellingRepositoryPath
+init_file <- fromJSON(args[1])
+soilModelling_RepositoryPath <- init_file$soilModellingRepositoryPath
+CO2emissions_RepositoryPath <- init_file$soilModellingRepositoryPath
 source(file.path(soilModelling_RepositoryPath,"scripts","run_soil_model.R"))
 source(file.path(CO2emissions_RepositoryPath, "scripts", "main.R"))
-farmId = args[1]
+farmId = as.character(args[2])
 
-step_in_table_final <- run_soil_model(init_file_path, farmId = farmId)
-step_in_table_final$yearly_co2emissions <- rep(0,10) #get_co2emissions(init_file_path, farmId = farmId)
+step_in_table_final <- run_soil_model(init_file, farmId = farmId)
+step_in_table_final$yearly_co2emissions <- rep(0,10) #get_co2emissions(init_file, farmId = farmId)
 
 step_in_table_final <- step_in_table_final %>% 
   mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions)
 # pushing results to mongoDB
-connection_string <- init_file_path$connection_string
+connection_string <- init_file$connection_string
 carbonresults_collection = mongo(collection="carbonresults", db="carbonplusdb", url=connection_string)
 currentYear = format(Sys.Date(), "%Y")
 carbonresults_collection$update(paste('{"farmId":"',farms_everything$farmInfo$farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
