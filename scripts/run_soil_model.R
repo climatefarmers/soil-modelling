@@ -18,8 +18,6 @@ run_soil_model <- function(init_file_path, farmId = NA, JSONfile = NA){
     if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
     connection_string = init_file$connection_string
     farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
-    carbonresults_collection = mongo(collection="carbonresults", db="carbonplusdb", url=connection_string)
-    #farmsettings_collection = mongo(collection="farmsettings", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
   }
   
@@ -521,22 +519,5 @@ run_soil_model <- function(init_file_path, farmId = NA, JSONfile = NA){
   # write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
   # write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps.csv",sep="")), row.names = TRUE)
   # save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
-  # 
-  # pushing results to mongoDB
-  currentYear = format(Sys.Date(), "%Y")
-  carbonresults_collection$update(paste('{"farmId":"',farms_everything$farmInfo$farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
-                                  paste('{"$set":{"yearlyCarbonResults":[',step_in_table_final$yearly_certificates_mean[1],
-                                        ',',step_in_table_final$yearly_certificates_mean[2],
-                                        ',',step_in_table_final$yearly_certificates_mean[3],
-                                        ',',step_in_table_final$yearly_certificates_mean[4],
-                                        ',',step_in_table_final$yearly_certificates_mean[5],
-                                        ',',step_in_table_final$yearly_certificates_mean[6],
-                                        ',',step_in_table_final$yearly_certificates_mean[7],
-                                        ',',step_in_table_final$yearly_certificates_mean[8],
-                                        ',',step_in_table_final$yearly_certificates_mean[9],
-                                        ',',step_in_table_final$yearly_certificates_mean[10],
-                                        '],"startYear":',
-                                        as.numeric(farms_everything$farmInfo$startYear),'}}',sep=""),
-                                  upsert=TRUE)#year',i,'": ',round(step_in_table_final$yearly_certificates_mean[i]),'}}',sep=""))
-  
+ return(step_in_table_final) 
 }
