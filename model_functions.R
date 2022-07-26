@@ -306,10 +306,6 @@ get_bare_profile_df <- function(field_parameters){
   return(field_parameters)
 }
 
-
-
-
-
 download_clean_Wosis <- function(wosis.dir.name=NULL, europe=TRUE){
   
   # Check if Wosis has already been downloaded
@@ -439,14 +435,6 @@ overlap_wosis_envz<-function(wosis.download=FALSE, wosis.dir.name=NULL, soil_loc
   # print file
   wosis}
 
-# for initialisation we use data from Wosis, that is expressed in 25cm. 
-# we compare this to data from woris, in the same depth. 
-
-# then we have the historical data. We take the initial C, as predicted by initialise model. 
-# that is for 25cm. We then compare to 25cms. 
-
-# is the input from dt used anywhere in the model? 
-
 intialise.model.nv<-function(latitude, 
                              longitude, 
                              clay, 
@@ -454,9 +442,12 @@ intialise.model.nv<-function(latitude,
                              modelling_data_loc, 
                              tech_loc, 
                              dr_ratio=0.67, 
+                             depth=25,
                              soiltype="all",
                              EnvZ=NULL,
-                             weather_data=NULL){
+                             weather_data=NULL,
+                             pE = 0.75,
+                             tilling_factor = 1){
   # read in wosis, env.zone and land cover file
   source(file.path(soil_loc, "modified_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
@@ -470,7 +461,7 @@ intialise.model.nv<-function(latitude,
     weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5")
     weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5")}
   
-  
+
   wosis<-read.csv(paste0(tech_loc, "/Modelling/Validation_data/wosisEnvZLC.csv"))
   if (is.null(EnvZ)){
   EnvZ <-clime.zone.check(paste0(tech_loc, "/Modelling/Climatic_zone"), longitude, latitude)}
@@ -482,11 +473,11 @@ intialise.model.nv<-function(latitude,
       forest.sel<- wosis$land_use_cover==">75 - Forest" | wosis$land_use_cover=="50-75 - Forest"
     }
 
-  validation.set <- wosis[forest.sel,] #attention
+  validation.set <- wosis[forest.sel,] 
   
   # Phase 1 - model initialization ----
   validation.set<-validation.set[validation.set$lower_depth>10, ]
-  validation.set$cstock25<-validation.set$cstock_t.ha*25/validation.set$lower_depth
+  validation.set$cstock25<-validation.set$cstock_t.ha*depth/validation.set$lower_depth
   validation.set<-validation.set[!is.na(validation.set$cstock25), ]
   
   # if soil type is specified, then subsets accordingly, else subsets according to clay content 
@@ -522,10 +513,10 @@ intialise.model.nv<-function(latitude,
                          past_temp=weather_data$past_temperature, 
                          past_precip=weather_data$past_precipitation, 
                          past_evap=weather_data$past_pevap, 
-                         soil_thick=c(25,rep(NA,11)), 
+                         soil_thick=c(depth,rep(NA,11)), 
                          clay=c(clay,rep(NA,11)), 
-                         pE=c(0.75,rep(NA,11)), 
-                         tilling_factor=c(1.0,rep(NA,11)))
+                         pE=c(pE,rep(NA,11)), 
+                         tilling_factor=c(tilling_factor,rep(NA,11)))
   
   
   
@@ -543,7 +534,7 @@ intialise.model.nv<-function(latitude,
                                   evap = mean_input$past_evap,
                                   soil_thick = mean_input$soil_thick[1],
                                   clay = mean_input$clay[1],
-                                  pE = mean_input$pE[1],
+                                  pE = pE,
                                   PS = pedotransfer_ini_soil_content,
                                   tilling_factor = mean_input$tilling_factor[1])
   c_cinput_balance[1,"carbonstock"]<-tail(model1$TOT, 1)
@@ -557,7 +548,7 @@ intialise.model.nv<-function(latitude,
                                   evap = mean_input$past_evap,
                                   soil_thick = mean_input$soil_thick[1],
                                   clay = mean_input$clay[1],
-                                  pE = mean_input$pE[1],
+                                  pE =pE,
                                   PS = pedotransfer_ini_soil_content,
                                   tilling_factor = mean_input$tilling_factor[1])
   c_cinput_balance[2,"carbonstock"]<-tail(model2$TOT, 1)
@@ -580,7 +571,7 @@ intialise.model.nv<-function(latitude,
                                  evap = mean_input$past_evap,
                                  soil_thick = mean_input$soil_thick[1],
                                  clay = mean_input$clay[1],
-                                 pE = mean_input$pE[1],
+                                 pE = pE,
                                  PS = starting_soil_content,
                                  tilling_factor = mean_input$tilling_factor[1])
   pool.distribution.t0 <- as.numeric(tail(C0_df,1))[c(1:5)]
@@ -590,25 +581,18 @@ intialise.model.nv<-function(latitude,
   res
 }
 
-
-
-
-
-
-
-#currently this is only one experiment, but we might need to correct this when more are added. 
-# what about an inverse logarithmic loss? where the loss of C inputs is not linear?
-
-
 historical.land.use.M<-function(pool.distribution.t0, 
                                 Cinput.nature, 
                                 weather_data=NULL, 
                                 dt, 
+                                depth=25, 
                                 tech_loc, 
                                 soil_loc, 
                                 modelling_data_loc, 
                                 EnvZ=c("Mediterranean south", "Mediterranean north", "Mediterranean mountains"), 
-                                current.land.use){
+                                current.land.use,
+                                pE = 0.75,
+                                tilling_factor = 1){
   if(is.null(EnvZ) | length(EnvZ)>1) stop("Specify a subzone of the mediterranean zone: Mediterranean south, north or mountain")
   
   source(file.path(soil_loc, "modified_functions.R"))
@@ -656,9 +640,9 @@ historical.land.use.M<-function(pool.distribution.t0,
                     past_temp=weather_data$past_temperature, 
                     past_precip=weather_data$past_precipitation, 
                     past_evap=weather_data$past_pevap, 
-                    soil_thick=c(25,rep(NA,11)), 
+                    soil_thick=c(depth,rep(NA,11)), 
                     clay=c(clay_c,rep(NA,11)), 
-                    pE=c(0.75,rep(NA,11)), 
+                    pE=c(pE,rep(NA,11)), 
                     tilling_factor=c(1.0,rep(NA,11)))
   
   initialized_soil_content <- pool.distribution.t0 
@@ -672,7 +656,7 @@ historical.land.use.M<-function(pool.distribution.t0,
   
   
   # Anthropic influence starts
-  time_horizon = 350
+  time_horizon = 450
   for(i in c(1:time_horizon)){
     batch$field_carbon_in <- (time_horizon-i)/time_horizon*Cinput.nature +
       i/time_horizon*cinput_t350
@@ -714,7 +698,7 @@ historical.land.use.M<-function(pool.distribution.t0,
                                  tilling_factor = batch$tilling_factor[1]) # Attention: change: tilling occurs at least 1/2 times a year. 
   predictedCt0 <- as.numeric(tail(C0_df,1))[c(1:6)] 
   names(predictedCt0)<-names(C0_df)
-  ObservedC<-(dt$toc_end*25/lower.depth)[1]
+  ObservedC<-(dt$toc_end*depth/lower.depth)[1]
   res<-list(predictedCt0, ObservedC, weather_data)
   names(res)<-c("Carbon stock predicted at time 0", "Carbon observed at time 0", "weather data")
   message("Calculations were made using the first row. If this is not the control, please select the right row before running the function")
@@ -724,10 +708,13 @@ historical.land.use.M<-function(pool.distribution.t0,
 Cstock_in_time_catchC <- function(pool.distribution.t0, 
                                   weather_data=NULL,
                                   dt,
+                                  depth=25,
                                   tilling.factor=1,
                                   year.last.measurement,
                                   soil_loc, tech_loc, 
-                                  modelling_data_loc){
+                                  modelling_data_loc,
+                                  pE = 0.75,
+                                  tilling_factor = 1){
   
   # Weather inputs ---- 
   source(file.path(soil_loc, "modified_functions.R"))
@@ -756,9 +743,9 @@ Cstock_in_time_catchC <- function(pool.distribution.t0,
                          past_temp=weather_data$past_temperature,
                          past_precip=weather_data$past_precipitation,
                          past_evap=weather_data$past_pevap,
-                         soil_thick=c(25,rep(NA,11)),
+                         soil_thick=c(depth,rep(NA,11)),
                          clay=c(clay_c,rep(NA,11)),
-                         pE=c(0.75,rep(NA,11)),
+                         pE=c(pE,rep(NA,11)),
                          tilling_factor=c(1.0,rep(NA,11)))
 
   # Here is where we divide results for arable farms and grasslands    
@@ -786,7 +773,7 @@ Cstock_in_time_catchC <- function(pool.distribution.t0,
   c.prediction <-  as.numeric(tail(C0_df,1))[c(1:6)]
   names(c.prediction)<-names(C0_df)
 
-  ObservedC<-(dt$toc_end*25/lower.depth)[1]
+  ObservedC<-(dt$toc_end*depth/lower.depth)[1]
   
   res<-list(c.prediction, ObservedC, weather_data)
   names(res)<-c("Carbon stock predicted at time 1", "Carbon observed at time 0", "weather data")
