@@ -12,10 +12,10 @@ if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(SoilR, mongolite, ggplot2, dplyr, tidyr, tidyverse, soilassessment, deSolve, readr, pracma, jsonlite, kableExtra)
 
 init_file <- fromJSON(args[1])
-soilModelling_RepositoryPath <- init_file$soilModellingRepositoryPath
-CO2emissions_RepositoryPath <- init_file$soilModellingRepositoryPath
+soilModelling_RepositoryPath <- init_file$soil_loc
+CO2emissions_RepositoryPath <- init_file$co2_emissions_loc
 source(file.path(soilModelling_RepositoryPath,"scripts","run_soil_model.R"))
-source(file.path(CO2emissions_RepositoryPath, "scripts", "main.R"))
+#source(file.path(CO2emissions_RepositoryPath, "scripts", "main.R"))
 farmId = as.character(args[2])
 
 step_in_table_final <- run_soil_model(init_file, farmId = farmId)

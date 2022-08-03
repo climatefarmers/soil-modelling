@@ -52,7 +52,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
-  farm_EnZ <- clime.zone.check(climatic_zone_loc, lon_farmer, lat_farmer)
+  farm_EnZ <- clime.zone.check(init_file, lon_farmer, lat_farmer)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ)
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
@@ -68,13 +68,9 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # DONE tilling_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "tilling_inputs.csv"))
   
   ################# Weather data pulling
-  weather_data = data.frame(past_temperature=rep(NA,12))
-  weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
-  weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
-  weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
-  weather_data[,c("future_temperature_rcp8.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[13:24]
-  weather_data[,c("future_precipitation_rcp8.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[13:24]
-  weather_data[,c("future_pevap_rcp8.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp8.5", weatherDB_loc)[2]
+  weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
+                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
+                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
   
   ################# Calculations of C inputs per parcel and scenario
   parcel_Cinputs =data.frame(parcel_ID=c(),
@@ -514,9 +510,30 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # print(histogram)
   # dev.off()
+<<<<<<< Updated upstream
   # write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
   # write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
   # write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps.csv",sep="")), row.names = TRUE)
   # save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
  return(step_in_table_final) 
+=======
+  
+  histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
+    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
+    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
+                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+ 
+    xlab("Time")+
+    ylab("Number of certificates issuable (per year)")
+  print(histogram)
+  
+  name<-paste("Certificates_farm_",project_name,sep = "")
+  png(file.path(project_loc,project_name,"results",paste(name,"2.png",sep="")))
+  print(histogram)
+  dev.off()
+  write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps2.csv",sep="")), row.names = TRUE)
+  write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
+  write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
+  save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
+  
+>>>>>>> Stashed changes
 }
