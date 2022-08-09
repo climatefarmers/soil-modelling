@@ -203,10 +203,10 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
       # monthly yield and residue
       monthly_harvesting_yield = data.frame(crop=rep('-',12), coverCrop=rep('No',12), productiveFallow=rep('No',12),
                                             harvesting_yield=rep(0,12),residue_left=rep(0,12))
-      monthly_harvesting_yield$crop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]]
-      monthly_harvesting_yield$coverCrop = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$coverCropMonthlyData[[1]]
-      monthly_harvesting_yield$productiveFallow = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$productiveFallow[[1]]
-      monthly_harvesting_yield$grazing = landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]]
+      monthly_harvesting_yield$crop = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]]
+      monthly_harvesting_yield$coverCrop = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$coverCropMonthlyData[[1]]
+      monthly_harvesting_yield$productiveFallow = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$productiveFallow[[1]]
+      monthly_harvesting_yield$grazing = landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$grazing[[1]]
       monthly_harvesting_yield$harvesting_yield = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYield[[1]])
       monthly_harvesting_yield$residue_left = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]])
       # fresh or dry tOM/ha
@@ -277,15 +277,15 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
   #takes a landUseSummaryOrPractices from farms collection
   #extracts yield and residues left on site when grazing happening
   pasture_efficiency_potential_difference = unique((grazing_factors %>% filter(pedo_climatic_area==farm_EnZ))$pasture_efficiency_potential_difference)
-  nbYears_initialLandUse_wasApplied = as.numeric(landUseSummaryOrPractices[[parcel_index]][['year0']]$yearCroppingBegan)
-  previous_AMP_years = ifelse(landUseSummaryOrPractices[[parcel_index]][['year0']]$adaptiveMultiPaddockGrazing$usage=="Yes", nbYears_initialLandUse_wasApplied, 0) 
-  current_AMP_years = 0
   endWinterSeason = 5 # month index
   endSummerSeason = 10 # month index
   pasture_inputs = data.frame(scenario = c(), parcel_ID = c(), grass = c(), perennial_frac = c(), n_fixing_frac = c(), 
                               dry_yield = c(), fresh_yield = c(), dry_residual = c(), fresh_residual = c(), 
                               dry_agb_peak = c(), fresh_agb_peak = c(), pasture_efficiency = c())
   for (i in c(1:length(landUseSummaryOrPractices))){
+    nbYears_initialLandUse_wasApplied = as.numeric(landUseSummaryOrPractices[[i]][['year0']]$yearCroppingBegan)
+    previous_AMP_years = ifelse(landUseSummaryOrPractices[[i]][['year0']]$adaptiveMultiPaddockGrazing$usage=="Yes", nbYears_initialLandUse_wasApplied, 0) 
+    current_AMP_years = 0
     for (j in c(0:10)){
       #counting AMP years to calculate related efficiency
       current_AMP_years = current_AMP_years + ifelse(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$adaptiveMultiPaddockGrazing$usage=="Yes",
@@ -301,14 +301,14 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
       monthly_grazing_yield = data.frame(grazing_yield=rep(0,12),residue_left=rep(0,12))
       for (k in c(1:12)){
         # grazing without cash crop
-        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
-            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]=="-"){ #cash crop not grazed
+        if (landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
+            landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]=="-"){ #cash crop not grazed
           monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$harvestGrazingYiel[[1]][[k]])
           monthly_grazing_yield$residue_left[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
         }
         # grazing cash crop residues
-        if (landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
-            landUseSummaryOrPractices[[parcel_index]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]!="-"){ #cash crop not grazed but residue might be
+        if (landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$grazing[[1]][[k]]=="Yes" &
+            landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$cashCropMonthlyData[[1]][[k]]!="-"){ #cash crop not grazed but residue might be
           monthly_grazing_yield$grazing_yield[k] = as.numeric(landUseSummaryOrPractices[[i]][[paste('year',j,sep="")]]$estimatedPlantResidue[[1]][[k]])
         }
       }
