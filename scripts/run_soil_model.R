@@ -1,5 +1,7 @@
 run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
+  log4r::info(my_logger, "run_soil_model.R started running")
+  
   soil_loc <-init_file$soil_loc
   project_loc <- init_file$project_loc
   project_name <- init_file$project_name
@@ -18,6 +20,12 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     connection_string = init_file$connection_string
     farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
+    #checking correctness and unicity
+    if (farms_everything$farmInfo$farmId==farmId){
+      log4r::info(my_logger,paste("farm with farmId =",farmId,"has been read succesfully. Mail adress =",farms_everything$farmInfo$email,'.',sep=" "))
+    }else {
+      log4r::error(my_logger, paste("Unique farmId wasn't found. Number of farmId matching =",length(farms_everything$farmInfo$farmId)))
+    }
   }
   
   source(file.path(soil_loc, "model_functions.R"))
@@ -29,19 +37,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
-  farm_country <- farms_everything$farmInfo$country
-  
-  ################# Pulling calculation factors
-  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
-    rename(species=manure_source)
-  agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
-  crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
-  grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
-  manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
-  natural_area_factors <- read_csv(file.path(modelling_data_loc,"data", "natural_area_factors.csv")) %>%
-    filter(country==farm_country) # pulling natural area data will eventually be based on more precise parameters than country
-  pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
-  tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   
   ################# Pulling inputs
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
@@ -57,15 +52,17 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
   
-  # DONE add_manure_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "additional_manure_inputs.csv"))
-  # DONE agroforestry_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "agroforestry_inputs.csv"))
-  # DONE animal_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "animal_inputs.csv"))
-  # DONE bare_field_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "bare_field_inputs.csv"))
-  # DONE crop_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "crop_inputs.csv"))
-  # DONE parcel_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "parcel_inputs.csv"))
-  # DONE pasture_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "pasture_inputs.csv"))
-  # DONE soil_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "soil_inputs.csv"))
-  # DONE tilling_inputs <- read_csv(file.path(project_loc,project_name,"inputs", "tilling_inputs.csv"))
+  ################# Pulling calculation factors
+  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
+    rename(species=manure_source)
+  agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
+  crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
+  grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
+  manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
+  natural_area_factors <- read_csv(file.path(modelling_data_loc,"data", "natural_area_factors.csv")) %>%
+    filter(pedo_climatic_area==farm_EnZ) 
+  pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
+  tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   
   ################# Weather data pulling
   weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
@@ -94,9 +91,13 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                        pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
     }
   }
+  if (length(apply(is.na(parcel_Cinputs), 2, which))==0){
+    log4r::info(my_logger,'parcel C inputs calculations have no NAs.',sep=" ")
+  } else {
+    log4r::error(my_logger, paste(length(apply(is.na(parcel_Cinputs), 2, which)),'NAs were found in parcel C inputs calculation results.'))
+  }
   parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
   #write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
-  
   ################# Calculations of additionnal C inputs compared to baseline per parcel and scenario
   baseline_chosen="year0"
   
@@ -129,8 +130,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
          list(weather_data$future_temperature_rcp4.5),
          list(weather_data$past_precipitation),
          list(weather_data$future_precipitation_rcp4.5),
-         list(weather_data$past_pevap),
-         list(weather_data$future_pevap_rcp4.5),
+         list(weather_data$past_evap),
+         list(weather_data$future_evap_rcp4.5),
          list(c(30,rep(NA,11))), # modelled for 30 cm depth as recommended in IPCC Guidelines 2006
          list(c(mean_clay,rep(NA,11))),
          list(c(0.75,rep(NA,11))), # mean potential transpiration to open-pan evaporation convertion rate
@@ -263,10 +264,15 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                               yearly_certificates=c())
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
+  if (length(apply(is.na(nveg_soil_content), 2, which))==0){
+    log4r::info(my_logger,'Initialisation worked smoothly.',sep=" ")
+  } else {
+    log4r::error(my_logger, 'Initialisation output NA (before entering in parcels loop).')
+  }
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 100
+  n_run = 3
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -286,12 +292,12 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     if (climate_scenario=='rcp4.5'){
       mean_input$future_temp = weather_data$future_temperature_rcp4.5
       mean_input$future_precip = weather_data$future_precipitation_rcp4.5
-      mean_input$future_evap = weather_data$future_pevap_rcp4.5
+      mean_input$future_evap = weather_data$future_evap_rcp4.5
     }
     if (climate_scenario=='rcp8.5'){
       mean_input$future_temp = weather_data$future_temperature_rcp8.5
       mean_input$future_precip = weather_data$future_precipitation_rcp8.5
-      mean_input$future_evap = weather_data$future_pevap_rcp8.5
+      mean_input$future_evap = weather_data$future_evap_rcp8.5
     }
     #Apply factors to inputs average
     batch=data.frame(run=run_ID,
@@ -510,30 +516,14 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # print(histogram)
   # dev.off()
-<<<<<<< Updated upstream
   # write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
   # write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
   # write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps.csv",sep="")), row.names = TRUE)
   # save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
- return(step_in_table_final) 
-=======
-  
-  histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
-    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
-    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
-                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+ 
-    xlab("Time")+
-    ylab("Number of certificates issuable (per year)")
-  print(histogram)
-  
-  name<-paste("Certificates_farm_",project_name,sep = "")
-  png(file.path(project_loc,project_name,"results",paste(name,"2.png",sep="")))
-  print(histogram)
-  dev.off()
-  write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps2.csv",sep="")), row.names = TRUE)
-  write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
-  write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
-  save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
-  
->>>>>>> Stashed changes
+  if (length(apply(is.na(step_in_table_final), 2, which))==0){
+    log4r::info(my_logger,'soil_run_model.R calculations ran smoothly.',sep=" ")
+  } else {
+    log4r::error(my_logger, 'NAs in results.')
+  }
+  return(step_in_table_final) 
 }
