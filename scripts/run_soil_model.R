@@ -37,7 +37,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
+  soilAnalysis = farms_everything$soilAnalysis
   
+  grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
+  tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   ################# Pulling inputs
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
@@ -49,20 +52,19 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   lat_farmer <- mean(parcel_inputs$latitude)
   farm_EnZ <- clime.zone.check(init_file, lon_farmer, lat_farmer)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ)
-  soil_inputs <- get_soil_inputs(landUseSummaryOrPractices)
+  soilMapsData = data.frame(SOC=25,
+                            clay=30)# waiting for values from soil maps
+  soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
-  
   ################# Pulling calculation factors
   animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
     rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
-  grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   natural_area_factors <- read_csv(file.path(modelling_data_loc,"data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
-  tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   
   ################# Weather data pulling
   weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
@@ -119,12 +121,12 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Calculating the average clay content among parcels
   mean_clay = mean(soil_inputs$clay)
   # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
-  dr_ratio_trees = unique(natural_area_factors$DMP_RPM_ratio)
+  dr_ratio_agroforestry = unique(natural_area_factors$dr_ratio_agroforestry)
   dr_ratio_non_irrigated = unique(natural_area_factors$dr_ratio_non_irrigated)
   dr_ratio_irrigated = unique(natural_area_factors$dr_ratio_irrigated)
   # Building a mean input dataframe to feed RothC
   mean=c(list(rep(0,12)),
-         list(c(dr_ratio_trees,rep(NA,11))),
+         list(c(dr_ratio_non_irrigated,rep(NA,11))),
          list(as.factor(c(logical(12)))),
          list(weather_data$past_temperature),
          list(weather_data$future_temperature_rcp4.5),
@@ -139,111 +141,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","clay","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
-  
-  # Studying the BIAS in the Roth C model
-  # Read in management files ----
-  # Should have 3 scenarios: Natural vegetation, Baseline farm, future farm. 
-  # For each scenario we need input variables:
-  ##### Natural vegetation: Clay, silt, total carbon, either bulk density or organic matter, climate 
-  ##### Baseline farm: Clay, silt, carbon inputs, tillage & other management, climate. 
-  ##### Future farm: Clay, silt, carbon inputs, tillage and other management, future climate.
-  
-  LU<-read.csv(file.path(modelling_data_loc,"data", "/soil_landuse.portugal.csv"))
-  LU<-LU[LU$latitude < 39.5,] # Roughly where dry temperate weather starts in portugal 
-  table(LU$landcover)
-  validation.dt.baseline<-LU[LU$landcover=="Cropland", ]
-  calibration.dt.nveg<-LU[LU$landcover=="Tree cover", ]
-  # Phase 1 - model initialization ----
-  # I could average all "tree cover" areas. I don't need to validate these. 
-  # The baseline scenario for calibration should be ind. from the baseline sc. in validation
-  # Phase 1 - a) Understanding input data ----
-  ##hist(calibration.dt.nveg$cstock_t.ha)
-  median(calibration.dt.nveg$cstock_t.ha)
-  # To improve: extrapolation of C in deeper layers. 
-  validation.dt.baseline<-validation.dt.baseline[validation.dt.baseline$lower_depth>10, ]
-  calibration.dt.nveg<-calibration.dt.nveg[calibration.dt.nveg$lower_depth>10, ]
-  # We're supposed to use Mg per ha = tons per ha. 
-  cstock30<-calibration.dt.nveg$cstock_t.ha*30/calibration.dt.nveg$lower_depth
-  clay=median(calibration.dt.nveg$clay_value_avg)        #Percent clay
-  depth = 30
-  cstock= median(cstock30)
-  clay.sd = sd(calibration.dt.nveg$clay_value_avg)
-  cstock.sd= sd(cstock30)
-  median(cstock30[calibration.dt.nveg$clay_value_avg>10.3 & calibration.dt.nveg$clay_value_avg<16.3])
-  # hist(calibration.dt.nveg$clay_value_avg)
-  # hist(cstock30)
-  # plot(cstock30~calibration.dt.nveg$clay_value_avg)
-  # hist(calibration.dt.nveg$clay_value_avg)
-  # plot(cstock30, calibration.dt.nveg$clay_value_avg)
-  # Phase 1 - b) Initialise model - pedotransfer functions. ----
-  FallIOM=0.049*cstock^(1.139) #IOM using Falloon method
-  # Two approaches: We use C input calculated by paper
-  # We use pedotransfer functions for compartment equilibrium 
-  # From Weihermuller et al 2013
-  RPM = (0.1847*cstock+0.1555)*((clay+1.2750)^-0.1158)
-  HUM = (0.7148*cstock+0.5069)*((clay+0.3421)^0.0184)
-  BIO = (0.0140*cstock+0.0075)*((clay+8.8473)^0.0567)
-  # And let the model get to equilibrium 
-  # from arosa et al 2015 https://www.publish.csiro.au/sr/SR15347
-  # input is 617 kg leaves/ha x year  
-  # C content is 1001mg C in 2g of leaves. Which means each gram of leaves has 500mg of C = 0.5g of C. 
-  # That means for each Kg of leaves, half is Carbon. 
-  # That's 0.505kg per kg of litterfall. 
-  soil.thick=30  #Soil thickness (organic layer topsoil), in cm
-  SOC_nveg=median(cstock30)       #Soil organic carbon in Mg/ha 
-  time_horizon = 1000
-  ##### TO DO : change RothC parameters to semi-arid according to Farina et al. 2013
-  # d) Phase 1 - solve for C inputs ---- 
-  # we model 10 C inputs. and plot them
-  Cinputs=c(10, 20)   #Annual C inputs to soil in Mg/ha/yr
-  c_cinput_balance<-data.frame(matrix(nrow=length(Cinputs), ncol=2))
-  names(c_cinput_balance)<-c("carboninput", "carbonstock")
-  pedotransfer_ini_soil_content=c(DPM=0, RPM=median(RPM), BIO=median(BIO), HUM=median(HUM), IOM=median(FallIOM))
-  for(i in 1:length(Cinputs)){
-    field_carbon_in=Cinputs[i]
-    c_cinput_balance[i,"carboninput"]<-Cinputs[i]
-    model1 <- calc_carbon_over_time(time_horizon,
-                                    field_carbon_in = rep(field_carbon_in,time_horizon),
-                                    dr_ratio = rep(dr_ratio_trees,time_horizon),
-                                    bare = mean_input$bare,
-                                    temp = mean_input$past_temp,
-                                    precip = mean_input$past_precip,
-                                    evap = mean_input$past_evap,
-                                    soil_thick = mean_input$soil_thick[1],
-                                    clay = mean_input$clay[1],
-                                    pE = mean_input$pE[1],
-                                    PS = pedotransfer_ini_soil_content,
-                                    tilling_factor = mean_input$tilling_factor[1])
-    end_stock=tail(model1$TOT, 1) #Calculates stocks for each pool per month
-    c_cinput_balance[i,"carbonstock"]<-end_stock
-  }
-  plot(c_cinput_balance$carboninput, c_cinput_balance$carbonstock)
-  slope=(c_cinput_balance[2,2]-c_cinput_balance[1,2])/(c_cinput_balance[2,1]-c_cinput_balance[1,1])
-  
-  Cinput_leading_to_observed_SOC_past_land_use = SOC_nveg/slope
-  
-  ################# Run model per parcel and store graphs, absolute result and step-in tables for each scenario
-  # Initialisation as a forest
-  batch <- mean_input
-  batch$field_carbon_in <- Cinput_leading_to_observed_SOC_past_land_use
-  starting_soil_content <- estimate_starting_soil_content(SOC=Cinput_leading_to_observed_SOC_past_land_use,clay=mean_input$clay[1])
-  time_horizon = 1000
-  C0_df <- calc_carbon_over_time(time_horizon,
-                                 field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                 dr_ratio = rep(dr_ratio_trees,time_horizon),
-                                 bare = batch$bare,
-                                 temp = batch$past_temp,
-                                 precip = batch$past_precip,
-                                 evap = batch$past_evap,
-                                 soil_thick = batch$soil_thick[1],
-                                 clay = batch$clay[1],
-                                 pE = batch$pE[1],
-                                 PS = starting_soil_content,
-                                 tilling_factor = batch$tilling_factor[1])
-  nveg_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-  
-  
-  ## Modelling perform several times with different inputs
+    ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
   sd=data.frame(field_carbon_in=0.05,
                 dr_ratio = 0.05,
@@ -264,10 +162,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                               yearly_certificates=c())
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
-  if (length(apply(is.na(nveg_soil_content), 2, which))==0){
-    log4r::info(my_logger,'Initialisation worked smoothly.',sep=" ")
+  if (unique(unique(is.na(parcel_Cinputs))[1,])==FALSE){
+    log4r::info(my_logger,'Parcels loop starting smoothly. No NA in C inputs.',sep=" ")
   } else {
-    log4r::error(my_logger, 'Initialisation output NA (before entering in parcels loop).')
+    log4r::error(my_logger, 'NA C inputs (before entering in parcels loop).')
   }
   # Initialising run counter
   run_ID = 0
@@ -317,52 +215,12 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     for(i in c(1:nrow(parcel_inputs))){
       parcel = parcel_inputs$parcel_ID[i]
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
-      # Progressive transisiton from the general forest to the specific baseline land use over 350 years
-      initialized_soil_content <- nveg_soil_content
+      #Select parcel's fixed values
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
-      #Select parcel's clay content
       batch$clay = (soil_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$clay
-      batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_trees, 
+      batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_agroforestry, 
                               ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
-      # Anthropic influence starts
-      time_horizon = 350
-      for(i in c(1:time_horizon)){
-        batch$field_carbon_in <- (time_horizon-i)/time_horizon*Cinput_leading_to_observed_SOC_past_land_use+
-          i/time_horizon*(batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
-        C0_df <- calc_carbon_over_time(1,
-                                       field_carbon_in = rep(batch$field_carbon_in[1],1),
-                                       dr_ratio = rep(batch$dr_ratio[1],1),
-                                       bare = batch$bare,
-                                       temp = batch$past_temp,
-                                       precip = batch$past_precip,
-                                       evap = batch$past_evap,
-                                       soil_thick = batch$soil_thick[1],
-                                       clay = batch$clay[1],
-                                       pE = batch$pE[1],
-                                       PS = initialized_soil_content,
-                                       tilling_factor = batch$tilling_factor[1])
-        initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      } 
-      initialized_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      
-      batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
-      batch$bare = as.factor(t(bare_field_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))[c(3:14)])
-      batch$tilling_factor[1] = (tilling_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$tilling_factor
-      time_horizon = 75
-      C0_df <- calc_carbon_over_time(time_horizon,
-                                     field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                     dr_ratio = rep(batch$dr_ratio[1],time_horizon),
-                                     bare = batch$bare,
-                                     temp = batch$past_temp,
-                                     precip = batch$past_precip,
-                                     evap = batch$past_evap,
-                                     soil_thick = batch$soil_thick[1],
-                                     clay = batch$clay[1],
-                                     pE = batch$pE[1],
-                                     PS = initialized_soil_content,
-                                     tilling_factor = batch$tilling_factor[1]) # Attention: is there any tillage in the scenarios?
-      new_starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
-      
+      # choice of scenario = baseline
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
       batch$bare = as.factor(t(bare_field_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))[c(3:14)])
       batch$tilling_factor = (tilling_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$tilling_factor
@@ -377,10 +235,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                          soil_thick = batch$soil_thick[1],
                                          clay = batch$clay[1],
                                          pE = batch$pE[1],
-                                         PS = new_starting_soil_content,
+                                         PS = starting_soil_content,
                                          tilling_factor = batch$tilling_factor[1])
       
-      # For future, C_inputs are more uncertain
+      # For future, C_inputs are more uncertain: base uncertainty**1.5
       N_1 = 1 #first year of future modelling
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**1.5)
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==paste("year",N_1,sep="") & parcel_ID==parcel))$tot_Cinputs
@@ -397,7 +255,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                               soil_thick = batch$soil_thick[1],
                                               clay = batch$clay[1],
                                               pE = batch$pE[1],
-                                              PS = new_starting_soil_content,
+                                              PS = starting_soil_content,
                                               tilling_factor = batch$tilling_factor[1])
       starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
       C0_df_holistic= C0_df_holistic_yearly
@@ -425,10 +283,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       }
       
       all_results_batch <- rbind(all_results_batch,data.frame(run=run_ID,
-                                                              parcel_ID=rep(parcel,264),time=rep(seq(as.Date("2020-1-1"), as.Date("2030-12-31"), by = "month"),2),
-                                                              SOC=c(tail(C0_df,12)$TOT,C0_df_mdf$TOT,tail(C0_df,12)$TOT,C0_df_holistic$TOT),
-                                                              scenario=c(rep("baseline",132),rep("holistic",132)),
-                                                              farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
+                                                              parcel_ID=rep(parcel,240),time=rep(seq(as.Date("2021-1-1"), as.Date("2030-12-31"), by = "month"),2),
+                                                              SOC=c(C0_df_mdf$TOT,C0_df_holistic$TOT),
+                                                              scenario=c(rep("baseline",120),rep("holistic",120)),
+                                                              farm_frac=rep(farm_frac,240)))#,C0_df_baseline$TOT#,rep("current",120)
     }
     farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time,scenario,SOC_farm)))
     step_in_results <- unique(farm_results_batch %>% 
@@ -503,14 +361,14 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # # print(graph)
   # # dev.off()
-  # 
-  # histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
-  #   geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
-  #   geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
-  #                     ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
-  #   xlab("Time")+
-  #   ylab("Number of certificates issuable (per year)")
-  # print(histogram)
+# 
+#   histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
+#     geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
+#     geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
+#                       ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
+#     xlab("Time")+
+#     ylab("Number of certificates issuable (per year)")
+#   print(histogram)
 
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
