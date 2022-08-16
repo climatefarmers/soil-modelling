@@ -31,13 +31,12 @@ step_in_table_final$yearly_co2emissions <- rep(0,10) #get_co2emissions(init_file
 
 step_in_table_final <- step_in_table_final %>% 
   mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions)
-
 readLines(my_logfile)
 # pushing results to mongoDB
 connection_string <- init_file$connection_string
 carbonresults_collection = mongo(collection="carbonresults", db="carbonplusdb", url=connection_string)
 currentYear = format(Sys.Date(), "%Y")
-carbonresults_collection$update(paste('{"farmId":"',farms_everything$farmInfo$farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
+carbonresults_collection$update(paste('{"farmId":"',farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
                                 paste('{"$set":{"yearlyCarbonResults":[',step_in_table_final$yearly_certificates_mean[1],
                                       ',',step_in_table_final$yearly_certificates_mean[2],
                                       ',',step_in_table_final$yearly_certificates_mean[3],
