@@ -731,9 +731,9 @@ Cstock_in_time_catchC <- function(pool.distribution.t0,
   if (is.null(weather_data)) {
     weatherDB_loc<-paste0(tech_loc, "/Modelling/WeatherDB")  
     weather_data = data.frame(past_temperature=rep(NA,12))
-    weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer, scenario="rcp4.5")
-    weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5")
-    weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5")}
+    weather_data[,c("past_temperature", "future_temperature_rcp4.5")] <- get_monthly_mean_temperature(lon_farmer,lat_farmer, scenario="rcp4.5", weatherDB_loc)
+    weather_data[,c("past_precipitation", "future_precipitation_rcp4.5")] <- get_monthly_mean_precipitation(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)
+    weather_data[,c("past_pevap", "future_pevap_rcp4.5")] <- get_monthly_mean_pevap(lon_farmer,lat_farmer,scenario="rcp4.5", weatherDB_loc)}
   
   # All inputs for initialisation ----  
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
@@ -772,9 +772,7 @@ Cstock_in_time_catchC <- function(pool.distribution.t0,
       
   c.prediction <-  as.numeric(tail(C0_df,1))[c(1:6)]
   names(c.prediction)<-names(C0_df)
-
-  ObservedC<-(dt$toc_end*depth/lower.depth)[1]
-  
+  ifelse(is.na(dt$toc_end), {message("Observed C missing in dt"); ObservedC<-NA}, ObservedC<-(dt$toc_end*depth/lower.depth)[1])
   res<-list(c.prediction, ObservedC, weather_data)
   names(res)<-c("Carbon stock predicted at time 1", "Carbon observed at time 0", "weather data")
   message("C prediction was done for the first row only")
