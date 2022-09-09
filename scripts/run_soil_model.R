@@ -41,16 +41,18 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
+  soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
   ################# Pulling inputs
+  parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
+  lon_farmer <- mean(parcel_inputs$longitude)
+  lat_farmer <- mean(parcel_inputs$latitude)
+  farm_EnZ <- clime.zone.check(init_file, lon_farmer, lat_farmer)
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
-  parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
-  lon_farmer <- mean(parcel_inputs$longitude)
-  lat_farmer <- mean(parcel_inputs$latitude)
-  farm_EnZ <- clime.zone.check(init_file, lon_farmer, lat_farmer)
+  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ)
   soilMapsData = data.frame(SOC=25,
                             clay=30)# waiting for values from soil maps
@@ -72,6 +74,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                      get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
   
   ################# Calculations of C inputs per parcel and scenario
+  baseline_chosen="baseline"
   parcel_Cinputs =data.frame(parcel_ID=c(),
                              scenario=c(),
                              add_manure_Cinputs=c(),
@@ -92,6 +95,16 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                        crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                        pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
     }
+    scenario = baseline_chosen
+    parcel_Cinputs<-rbind(parcel_Cinputs,
+                          data.frame(parcel_ID=parcel,
+                                     scenario=scenario,
+                                     add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
+                                     agroforestry_Cinputs=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                                                                           scenario, parcel, lat_farmer),
+                                     animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
+                                     crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
+                                     pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
   }
   if (length(apply(is.na(parcel_Cinputs), 2, which))==0){
     log4r::info(my_logger,'parcel C inputs calculations have no NAs.',sep=" ")
@@ -101,7 +114,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
   #write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
   ################# Calculations of additionnal C inputs compared to baseline per parcel and scenario
-  baseline_chosen="year0"
   
   parcel_Cinputs_addition = merge(x= parcel_Cinputs, 
                                   y= parcel_inputs %>% 
@@ -119,6 +131,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   # Calculating the average clay content among parcels
+  mean_clay = mean(soil_inputs$SOC)
   mean_clay = mean(soil_inputs$clay)
   # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
   dr_ratio_agroforestry = unique(natural_area_factors$dr_ratio_agroforestry)
@@ -135,6 +148,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
          list(weather_data$past_evap),
          list(weather_data$future_evap_rcp4.5),
          list(c(30,rep(NA,11))), # modelled for 30 cm depth as recommended in IPCC Guidelines 2006
+         list(c(mean_SOC,rep(NA,11))),
          list(c(mean_clay,rep(NA,11))),
          list(c(0.75,rep(NA,11))), # mean potential transpiration to open-pan evaporation convertion rate
          list(c(1.0,rep(NA,11))))
@@ -149,6 +163,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                 precip = 0.025,
                 evap = 0.025,
                 soil_thick = 0.025,
+                SOC = 0.025, # to be adapted to soil maps incertainty if used
                 clay = 0.025,
                 pE = 0.025,
                 tilling_factor = 0.025)
@@ -170,7 +185,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 3
+  n_run = 100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -182,6 +197,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                           precip = rnorm(1,1,sd$precip),
                           evap = rnorm(1,1,sd$evap),
                           soil_thick = rnorm(1,1,sd$soil_thick),
+                          SOC = rnorm(1,1,sd$SOC),
                           clay = rnorm(1,1,sd$clay),
                           pE = rnorm(1,1,sd$pE),
                           tilling_factor = rnorm(1,1,sd$tilling_factor))
@@ -207,6 +223,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                      future_precip = mean_input$future_precip*batch_coef$precip,
                      future_evap = mean_input$future_evap*batch_coef$evap,
                      soil_thick = mean_input$soil_thick*batch_coef$soil_thick,
+                     SOC = mean_input$clay*batch_coef$SOC,
                      clay = mean_input$clay*batch_coef$clay,
                      pE = mean_input$pE*batch_coef$pE,
                      tilling_factor = mean_input$tilling_factor*batch_coef$tilling_factor)
@@ -224,6 +241,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$tot_Cinputs
       batch$bare = as.factor(t(bare_field_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))[c(3:14)])
       batch$tilling_factor = (tilling_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$tilling_factor
+      starting_soil_content = estimate_starting_soil_content(SOC=batch$SOC[1], clay=batch$clay[1]) 
       time_horizon = 10
       C0_df_mdf <- calc_carbon_over_time(time_horizon,
                                          field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
