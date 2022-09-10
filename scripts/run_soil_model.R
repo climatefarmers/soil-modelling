@@ -131,7 +131,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   # Calculating the average clay content among parcels
-  mean_clay = mean(soil_inputs$SOC)
+  mean_SOC = mean(soil_inputs$SOC)
   mean_clay = mean(soil_inputs$clay)
   # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
   dr_ratio_agroforestry = unique(natural_area_factors$dr_ratio_agroforestry)
@@ -152,7 +152,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
          list(c(mean_clay,rep(NA,11))),
          list(c(0.75,rep(NA,11))), # mean potential transpiration to open-pan evaporation convertion rate
          list(c(1.0,rep(NA,11))))
-  colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","clay","pE","tilling_factor")
+  colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","SOC","soil_thick","clay","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
     ## Modelling perform several times with different inputs
@@ -223,7 +223,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                      future_precip = mean_input$future_precip*batch_coef$precip,
                      future_evap = mean_input$future_evap*batch_coef$evap,
                      soil_thick = mean_input$soil_thick*batch_coef$soil_thick,
-                     SOC = mean_input$clay*batch_coef$SOC,
+                     SOC = mean_input$SOC*batch_coef$SOC,
                      clay = mean_input$clay*batch_coef$clay,
                      pE = mean_input$pE*batch_coef$pE,
                      tilling_factor = mean_input$tilling_factor*batch_coef$tilling_factor)

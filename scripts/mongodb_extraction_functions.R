@@ -177,17 +177,17 @@ get_agroforestry_inputs = function(landUseSummaryOrPractices){
             tree_species = c(typeOfTrees$treeName[[k]]),
             dbh = c(as.numeric(typeOfTrees$treeAvgDBH[[k]])), 
             tree_density = c(as.numeric(typeOfTrees$avgNoOfTrees[[k]])), 
-            area = c(as.numeric(landUseSummaryOrPractices[[i]]$area)/10000)))
-        }
-        if (j==0){ #baseline based on pre-project trees
-          for (k in c(1:nrow(typeOfTrees))){
-            agroforestry_inputs <- rbind(agroforestry_inputs,data.frame(
-              parcel_ID = c(landUseSummaryOrPractices[[i]]$parcelName), 
-              scenario = c("baseline"), 
-              tree_species = c(typeOfTrees$treeName[[k]]),
-              dbh = c(as.numeric(typeOfTrees$treeAvgDBH[[k]])), 
-              tree_density = c(as.numeric(typeOfTrees$avgNoOfTrees[[k]])), 
-              area = c(as.numeric(landUseSummaryOrPractices[[i]]$area)/10000)))
+            area = c(as.numeric(landUseSummaryOrPractices[[1]]$area[i])/10000)))
+          if (j==0){ #baseline based on pre-project trees
+            for (k in c(1:nrow(typeOfTrees))){
+              agroforestry_inputs <- rbind(agroforestry_inputs,data.frame(
+                parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+                scenario = c("baseline"), 
+                tree_species = c(typeOfTrees$treeName[[k]]),
+                dbh = c(as.numeric(typeOfTrees$treeAvgDBH[[k]])), 
+                tree_density = c(as.numeric(typeOfTrees$avgNoOfTrees[[k]])), 
+                area = c(as.numeric(landUseSummaryOrPractices[[1]]$area[i])/10000)))
+            }
           }
         }
       }
@@ -397,7 +397,7 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
   return(parcel_inputs)
 }
 #schema_fixed
-get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ){
+get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ, my_logger){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts yield and residues left on site when grazing happening
   pasture_efficiency_potential_difference = unique((grazing_factors %>% filter(pedo_climatic_area==farm_EnZ))$pasture_efficiency_potential_difference)
