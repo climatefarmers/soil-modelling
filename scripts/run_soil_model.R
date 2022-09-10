@@ -52,8 +52,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
-  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs)
-  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ)
+  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, my_logger)
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, my_logger)
   soilMapsData = data.frame(SOC=25,
                             clay=30)# waiting for values from soil maps
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
