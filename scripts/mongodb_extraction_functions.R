@@ -406,10 +406,10 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
   pasture_inputs = data.frame(scenario = c(), parcel_ID = c(), grass = c(), perennial_frac = c(), n_fixing_frac = c(), 
                               dry_yield = c(), fresh_yield = c(), dry_residual = c(), fresh_residual = c(), 
                               dry_agb_peak = c(), fresh_agb_peak = c(), pasture_efficiency = c())
-  if(landUseSummaryOrPractices[[1]]$year0$yearCroppingBegan[i]==""){
-    log4r::error(my_logger,"Number of years that practices have been applied until now is NOT entered.")
-  }
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
+    if(landUseSummaryOrPractices[[1]]$year0$yearCroppingBegan[i]==""){
+      log4r::error(my_logger,"Number of years that practices have been applied until now is NOT entered.")
+    }
     nbYears_initialLandUse_wasApplied = as.numeric(landUseSummaryOrPractices[[1]][['year0']]$yearCroppingBegan[i])
     previous_AMP_years = ifelse(landUseSummaryOrPractices[[1]][['year0']]$adaptiveMultiPaddockGrazing[i]=="Yes", nbYears_initialLandUse_wasApplied, 0) 
     current_AMP_years = 0
