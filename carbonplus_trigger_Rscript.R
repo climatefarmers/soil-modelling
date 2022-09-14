@@ -20,15 +20,13 @@ my_file_appender = file_appender(my_logfile, append = TRUE,
 my_logger <- log4r::logger(threshold = "INFO", 
                            appenders= list(my_console_appender,my_file_appender))
 log4r::info(my_logger, paste("farmId = ",farmId,sep=""))
-init_file <- fromJSON("FilePathToBeCOMPLETED.......................!")
+init_file <- fromJSON("~/Stages/ClimateFarmers/soil-modelling/tech/parameter_files/init_mongoAtlas_suhas.json")
 soilModelling_RepositoryPath <- init_file$soil_loc
 CO2emissions_RepositoryPath <- init_file$co2_emissions_loc
 source(file.path(soilModelling_RepositoryPath,"scripts","run_soil_model.R"))
 #source(file.path(CO2emissions_RepositoryPath, "scripts", "main.R"))
-
 step_in_table_final <- run_soil_model(init_file, farmId = farmId)
 step_in_table_final$yearly_co2emissions <- rep(0,10) #get_co2emissions(init_file, farmId = farmId)
-
 step_in_table_final <- step_in_table_final %>% 
   mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions)
 readLines(my_logfile)

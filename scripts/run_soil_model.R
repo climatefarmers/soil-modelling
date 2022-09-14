@@ -39,7 +39,14 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
   
+  ################# Pulling calculation factors
+  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
+    rename(species=manure_source)
+  agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
+  crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
+  manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
+  pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
   ################# Pulling inputs
@@ -50,23 +57,17 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
-  bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices)
+  bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
-  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, my_logger)
+  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, my_logger)
-  soilMapsData = data.frame(SOC=25,
-                            clay=30)# waiting for values from soil maps
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
-  ################# Pulling calculation factors
-  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
-    rename(species=manure_source)
-  agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
-  crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))#, col_types =  "cdddddddd")
-  manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
-  natural_area_factors <- read_csv(file.path(modelling_data_loc,"data", "natural_area_factors.csv")) %>%
+  # Pulling factors depending on farmer inputs
+  natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
-  pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
+  soilMapsData = data.frame(SOC=25,
+                            clay=30)# waiting for values from soil maps
   
   ################# Weather data pulling
   weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
@@ -242,6 +243,20 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       batch$bare = as.factor(t(bare_field_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))[c(3:14)])
       batch$tilling_factor = (tilling_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$tilling_factor
       starting_soil_content = estimate_starting_soil_content(SOC=batch$SOC[1], clay=batch$clay[1]) 
+      time_horizon = 1
+      C0_df <- calc_carbon_over_time(time_horizon,
+                                     field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
+                                     dr_ratio = rep(batch$dr_ratio[1],time_horizon),
+                                     bare = batch$bare,
+                                     temp = batch$future_temp,
+                                     precip = batch$future_precip,
+                                     evap = batch$future_evap,
+                                     soil_thick = batch$soil_thick[1],
+                                     clay = batch$clay[1],
+                                     pE = batch$pE[1],
+                                     PS = starting_soil_content,
+                                     tilling_factor = batch$tilling_factor[1])
+      starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       time_horizon = 10
       C0_df_mdf <- calc_carbon_over_time(time_horizon,
                                          field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
@@ -301,10 +316,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       }
       
       all_results_batch <- rbind(all_results_batch,data.frame(run=run_ID,
-                                                              parcel_ID=rep(parcel,240),time=rep(seq(as.Date("2021-1-1"), as.Date("2030-12-31"), by = "month"),2),
-                                                              SOC=c(C0_df_mdf$TOT,C0_df_holistic$TOT),
-                                                              scenario=c(rep("baseline",120),rep("holistic",120)),
-                                                              farm_frac=rep(farm_frac,240)))#,C0_df_baseline$TOT#,rep("current",120)
+                                                              parcel_ID=rep(parcel,264),
+                                                              time=rep(seq(as.Date("2021-1-1"), as.Date("2031-12-31"), by = "month"),2),
+                                                              SOC=c(C0_df$TOT,C0_df_mdf$TOT,C0_df$TOT,C0_df_holistic$TOT),
+                                                              scenario=c(rep("baseline",132),rep("holistic",132)),
+                                                              farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
     }
     farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time,scenario,SOC_farm)))
     step_in_results <- unique(farm_results_batch %>% 

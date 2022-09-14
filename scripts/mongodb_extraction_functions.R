@@ -254,7 +254,7 @@ get_animal_inputs = function(landUseSummaryOrPractices,livestock){
   return(animal_inputs)
 }
 #schema_fixed
-get_bare_field_inputs = function(landUseSummaryOrPractices){
+get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, farm_EnZ){
   # takes landUseSummaryOrPractices from farms collection
   # extracts bare soil inputs dataframe 
   bare_field_inputs = data.frame(parcel_ID = c(), scenario = c())
@@ -349,16 +349,16 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
   return(crop_inputs)
 }
 #schema_fixed
-get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, my_logger){
+get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger){
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     if(landUseSummaryOrPractices[[1]]$year0$yearCroppingBegan[i]==""){
       log4r::error(my_logger,"Number of years that practices have been applied until now is NOT entered.")
-      }
+    }
     if (as.numeric(landUseSummaryOrPractices[[1]]$year0$yearCroppingBegan[i])>4){
       # choice that if an arable crop has been run for more than 4 years in a way, this way must be the baseline
       crop_inputs <- rbind(crop_inputs,crop_inputs%>%
-                                   filter(parcel_ID==landUseSummaryOrPractices[[1]]$parcelName[i], scenario=='year0')%>%
-                                   mutate(scenario='baseline')) # arable crop baseline is based on previous years
+                             filter(parcel_ID==landUseSummaryOrPractices[[1]]$parcelName[i], scenario=='year0')%>%
+                             mutate(scenario='baseline')) # arable crop baseline is based on previous years
     } else {
       if(nrow(crop_inputs %>% filter(crop=='Wheat' | crop=='Winter wheat' | crop=='Spring wheat'))>0){#if we have wheat data from the farmer
         crop_inputs_temp <- crop_inputs %>% filter(crop=='Wheat' | crop=='Winter wheat' | crop=='Spring wheat') %>%
@@ -420,12 +420,12 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
       # calculate relating efficiency if it was a permanent grassland
       if(previous_AMP_years+current_AMP_years>=0){ #case where AMP is steadly applied
         pasture_efficiency = 1 + pasture_efficiency_potential_difference *
-        (exp(-0.36*previous_AMP_years)-exp(-0.36*(previous_AMP_years+current_AMP_years)))#0.36 factor allows to reach 2/3 of AMP efficiency increase after 3 years of AMP
+          (exp(-0.36*previous_AMP_years)-exp(-0.36*(previous_AMP_years+current_AMP_years)))#0.36 factor allows to reach 2/3 of AMP efficiency increase after 3 years of AMP
       } else { #case where AMP is no (longer) applied 
         pasture_efficiency = (1 + pasture_efficiency_potential_difference*(1-exp(-0.36*(previous_AMP_years+current_AMP_years))))/
           (1+pasture_efficiency_potential_difference*(1-exp(-0.36*previous_AMP_years)))
       }
-        # selecting the right type of landuse were grazing manangement affects most pasture efficiency 
+      # selecting the right type of landuse were grazing manangement affects most pasture efficiency 
       if(landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]$landUseType[i]=='Arable Crops' |
          landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]$landUseType[i]=='Arablecrops'){
         pasture_efficiency= mean(1,pasture_efficiency) # assumption that grazing management impacts less arable crops
@@ -509,7 +509,7 @@ get_soil_inputs = function(landUseSummaryOrPractices, soilAnalysis, soilMapsData
           clay = c(get_clay_content(soilAnalysis, soilMapsData)),
           SOC = c(get_SOC_content(soilAnalysis, soilMapsData)),
           irrigation = c(landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]$irrigation[i])))
-        }
+      }
     }
   }
   return(soil_inputs)
