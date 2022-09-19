@@ -28,8 +28,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     }
   }
   
-  source(file.path(soil_loc, "model_functions.R"))
-  source(file.path(soil_loc, "modified_functions.R"))
+  source(file.path(soil_loc, "model_semiArid_functions.R"))
+  source(file.path(soil_loc, "modified_semiArid_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"))
   source(file.path(modelling_data_loc, "scripts/Climatic_zone_check_function.R"))
@@ -67,7 +67,9 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
   soilMapsData = data.frame(SOC=25,
-                            clay=30)# waiting for values from soil maps
+                            clay=30,
+                            silt=30,
+                            bulk_density=1.2)# waiting for values from soil maps
   
   ################# Weather data pulling
   weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
@@ -131,9 +133,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
-  # Calculating the average clay content among parcels
+  # Calculating the average soil pararmeters among parcels
   mean_SOC = mean(soil_inputs$SOC)
   mean_clay = mean(soil_inputs$clay)
+  mean_silt = mean(soil_inputs$silt)
+  mean_bulk_density = mean(soil_inputs$bulk_density)
   # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
   dr_ratio_agroforestry = unique(natural_area_factors$dr_ratio_agroforestry)
   dr_ratio_non_irrigated = unique(natural_area_factors$dr_ratio_non_irrigated)
@@ -151,9 +155,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
          list(c(30,rep(NA,11))), # modelled for 30 cm depth as recommended in IPCC Guidelines 2006
          list(c(mean_SOC,rep(NA,11))),
          list(c(mean_clay,rep(NA,11))),
+         list(c(mean_silt,rep(NA,11))),
+         list(c(mean_bulk_density,rep(NA,11))),
          list(c(0.75,rep(NA,11))), # mean potential transpiration to open-pan evaporation convertion rate
          list(c(1.0,rep(NA,11))))
-  colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","SOC","soil_thick","clay","pE","tilling_factor")
+  colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","SOC","clay","silt","bulk_density","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
     ## Modelling perform several times with different inputs
@@ -166,6 +172,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                 soil_thick = 0.025,
                 SOC = 0.025, # to be adapted to soil maps incertainty if used
                 clay = 0.025,
+                silt = 0.025, 
+                bulk_density = 0.025,
                 pE = 0.025,
                 tilling_factor = 0.025)
   # Initialising data structures
@@ -183,6 +191,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   } else {
     log4r::error(my_logger, 'NA C inputs (before entering in parcels loop).')
   }
+  #Chossing model version
+  model_version = ifelse(substring(farm_EnZ,1,13)=="Mediterranean","Semi-arid","Normal")
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
@@ -201,7 +211,9 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                           SOC = rnorm(1,1,sd$SOC),
                           clay = rnorm(1,1,sd$clay),
                           pE = rnorm(1,1,sd$pE),
-                          tilling_factor = rnorm(1,1,sd$tilling_factor))
+                          tilling_factor = rnorm(1,1,sd$tilling_factor),
+                          silt = rnorm(1,1,sd$silt),
+                          bulk_density = rnorm(1,1,sd$bulk_density))
     #Choose randomly one of the two climate scenari
     climate_scenario = ifelse(sample(0:1,1)==0, 'rcp4.5', 'rcp8.5')
     if (climate_scenario=='rcp4.5'){
@@ -226,6 +238,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                      soil_thick = mean_input$soil_thick*batch_coef$soil_thick,
                      SOC = mean_input$SOC*batch_coef$SOC,
                      clay = mean_input$clay*batch_coef$clay,
+                     silt = mean_input$silt*batch_coef$silt,
+                     bulk_density = mean_input$bulk_density*batch_coef$bulk_density,
                      pE = mean_input$pE*batch_coef$pE,
                      tilling_factor = mean_input$tilling_factor*batch_coef$tilling_factor)
     batch = data.frame(batch)
@@ -235,7 +249,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       farm_frac = parcel_inputs$area[i]/sum(parcel_inputs$area)
       #Select parcel's fixed values
       batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*batch_coef$field_carbon_in)
-      batch$clay = (soil_inputs %>% filter(scenario==baseline_chosen & parcel_ID==parcel))$clay
       batch$dr_ratio = ifelse((batch_parcel_Cinputs %>% filter (scenario==baseline_chosen & parcel_ID==parcel))$agroforestry_Cinputs>0, dr_ratio_agroforestry, 
                               ifelse((soil_inputs %>% filter(parcel_ID==parcel))$irrigation==TRUE, dr_ratio_irrigated, dr_ratio_non_irrigated))*batch_coef$dr_ratio
       # choice of scenario = baseline
@@ -255,7 +268,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                      clay = batch$clay[1],
                                      pE = batch$pE[1],
                                      PS = starting_soil_content,
-                                     tilling_factor = batch$tilling_factor[1])
+                                     tilling_factor = batch$tilling_factor[1],
+                                     version=model_version,
+                                     silt = batch$silt[1],
+                                     bulk_density = batch$bulk_density[1])
       starting_soil_content <- as.numeric(tail(C0_df,1))[c(1:5)]
       time_horizon = 10
       C0_df_mdf <- calc_carbon_over_time(time_horizon,
@@ -269,7 +285,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                          clay = batch$clay[1],
                                          pE = batch$pE[1],
                                          PS = starting_soil_content,
-                                         tilling_factor = batch$tilling_factor[1])
+                                         tilling_factor = batch$tilling_factor[1],
+                                         version=model_version,
+                                         silt = batch$silt[1],
+                                         bulk_density = batch$bulk_density[1])
       
       # For future, C_inputs are more uncertain: base uncertainty**1.5
       N_1 = 1 #first year of future modelling
@@ -289,7 +308,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                               clay = batch$clay[1],
                                               pE = batch$pE[1],
                                               PS = starting_soil_content,
-                                              tilling_factor = batch$tilling_factor[1])
+                                              tilling_factor = batch$tilling_factor[1],
+                                              version=model_version,
+                                              silt = batch$silt[1],
+                                              bulk_density = batch$bulk_density[1])
       starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
       C0_df_holistic= C0_df_holistic_yearly
       # next years
@@ -310,7 +332,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                                 clay = batch$clay[1],
                                                 pE = batch$pE[1],
                                                 PS = starting_holistic_soil_content,
-                                                tilling_factor = batch$tilling_factor[1])
+                                                tilling_factor = batch$tilling_factor[1],
+                                                version=model_version,
+                                                silt = batch$silt[1],
+                                                bulk_density = batch$bulk_density[1])
         starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
         C0_df_holistic= rbind(C0_df_holistic,C0_df_holistic_yearly)
       }
