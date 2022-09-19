@@ -78,6 +78,21 @@ get_clay_content <- function(soilAnalysis, soilMapsData){
   }
 }
 
+get_silt_content <- function(soilAnalysis, soilMapsData){
+  if (is.na(soilAnalysis$siltContentPercent)==FALSE){
+    if(5<as.numeric(soilAnalysis$siltContentPercent) & as.numeric(soilAnalysis$siltContentPercent)<80){
+      return(as.numeric(soilAnalysis$siltContentPercent))
+    } else {
+      log4r::error(my_logger, paste("silt content input = ", 
+                                    as.numeric(soilAnalysis$siltContentPercent),
+                                    "%. Check unit/values with farmer.", sep=""))
+    }
+  }
+  if (is.na(soilAnalysis$siltContentPercent)==TRUE){
+    return(soilMapsData$silt)
+  }
+}
+
 get_SOC_content <- function(soilAnalysis, soilMapsData){
   if (is.na(soilAnalysis$carbonContent)==FALSE){ # SOC in t/ha = g/kg
     if(4<as.numeric(soilAnalysis$carbonContent) & as.numeric(soilAnalysis$carbonContent)<40){
@@ -105,6 +120,23 @@ get_SOC_content <- function(soilAnalysis, soilMapsData){
   }
   if (is.na(soilAnalysis$clayContentPercent)==TRUE & is.na(soilAnalysis$organicMatterContent)==TRUE){
     return(soilMapsData$SOC)
+  }
+}
+
+get_bulk_density <- function(soilAnalysis, soilMapsData){
+  if (is.na(soilAnalysis$bulkDensity)==FALSE){
+    if(0.7<as.numeric(soilAnalysis$bulkDensity) & as.numeric(soilAnalysis$bulkDensity)<2){
+      return(as.numeric(soilAnalysis$bulkDensity))
+    } else if (700<as.numeric(soilAnalysis$bulkDensity) & as.numeric(soilAnalysis$bulkDensity)<2000){
+      return(as.numeric(soilAnalysis$bulkDensity)*1e-3)
+    } else {
+      log4r::error(my_logger, paste("bulk density input = ", 
+                                    as.numeric(soilAnalysis$bulkDensity),
+                                    ". Check unit/values with farmer.", sep=""))
+    }
+  }
+  if (is.na(soilAnalysis$bulkDensity)==TRUE){
+    return(soilMapsData$bulk_density)
   }
 }
 
@@ -500,14 +532,18 @@ get_soil_inputs = function(landUseSummaryOrPractices, soilAnalysis, soilMapsData
         parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]),
         scenario = c(paste('year',j,sep="")),
         clay = c(get_clay_content(soilAnalysis, soilMapsData)),
+        silt = c(get_silt_content(soilAnalysis, soilMapsData)),
         SOC = c(get_SOC_content(soilAnalysis, soilMapsData)),
+        bulk_density = c(get_bulk_density(soilAnalysis, soilMapsData)),
         irrigation = c(landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]$irrigation[i])))
       if (j==0){
         soil_inputs <- rbind(soil_inputs,data.frame(
           parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]),
           scenario = c("baseline"),
           clay = c(get_clay_content(soilAnalysis, soilMapsData)),
+          silt = c(get_silt_content(soilAnalysis, soilMapsData)),
           SOC = c(get_SOC_content(soilAnalysis, soilMapsData)),
+          bulk_density = c(get_bulk_density(soilAnalysis, soilMapsData)),
           irrigation = c(landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]$irrigation[i])))
       }
     }
