@@ -430,7 +430,9 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     parcel_inputs <- rbind(parcel_inputs,data.frame(
       parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
-      area = c(as.numeric(landUseSummaryOrPractices[[1]]$area[i])/10000), 
+      area = ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE, # means that no corrected value was provided by the farmer
+                    c(as.numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                    c(as.numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000)), # add a verification of consistence here
       longitude = c(as.numeric(extract_longitude_landUseSummaryOrPractices(landUseSummaryOrPractices,i))),
       latitude=c(as.numeric(extract_latitude_landUseSummaryOrPractices(landUseSummaryOrPractices,i)))))
   }
