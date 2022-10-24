@@ -13,7 +13,7 @@ extract_latitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices
   }
   return(mean(latitudes))
 }
-#schema_fixed
+
 extract_longitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices, parcel_index = i){
   #takes a landUseSummaryOrPractices from farms collection and a parcel index
   #extracts the mean longitude of parcel's corners
@@ -25,7 +25,7 @@ extract_longitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractice
   }
   return(mean(longitudes))
 }
-#schema_fixed
+
 extract_total_grazing_amount <- function(landUseSummaryOrPractices, year = j){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts the overall grazing yield and bale grazing yield from the whole farm
@@ -44,7 +44,7 @@ extract_total_grazing_amount <- function(landUseSummaryOrPractices, year = j){
   }
   return(bale_grazing_yield+grazing_yield)
 }
-#schema_fixed
+
 extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_index = i, year = j){
   #takes a landUseSummaryOrPractices from farms collection and a parcel index i
   #extracts grazing yield and bale grazing yield from parcel index i
@@ -64,8 +64,12 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
 }
 #schema_fixed
 get_clay_content <- function(soilAnalysis, soilMapsData){
-  if (is.null(soilAnalysis$clayContentPercent)==FALSE){
-    if(5<as.numeric(soilAnalysis$clayContentPercent) & as.numeric(soilAnalysis$clayContentPercent)<80){
+  if (is.null(soilAnalysis$clayContentPercent)==TRUE){
+    return(soilMapsData$clay)
+  } else if (soilAnalysis$clayContentPercent==""){
+    return(soilMapsData$clay)
+  } else { # variable found and a value is provided
+    if(5<as.numeric(soilAnalysis$clayContentPercent) & as.numeric(soilAnalysis$clayContentPercent)<80){ # assumed to be %
       return(as.numeric(soilAnalysis$clayContentPercent))
     } else {
       log4r::error(my_logger, paste("Clay content input = ", 
@@ -73,14 +77,15 @@ get_clay_content <- function(soilAnalysis, soilMapsData){
                                     "%. Check unit/values with farmer.", sep=""))
     }
   }
-  if (is.null(soilAnalysis$clayContentPercent)==TRUE){
-    return(soilMapsData$clay)
-  }
 }
 
 get_silt_content <- function(soilAnalysis, soilMapsData){
-  if (is.null(soilAnalysis$siltContentPercent)==FALSE){
-    if(5<as.numeric(soilAnalysis$siltContentPercent) & as.numeric(soilAnalysis$siltContentPercent)<80){
+  if (is.null(soilAnalysis$siltContentPercent)==TRUE){
+    return(soilMapsData$silt)
+  } else if (soilAnalysis$siltContentPercent==""){
+    return(soilMapsData$silt)
+  } else { # variable found and a value is provided
+    if(5<as.numeric(soilAnalysis$siltContentPercent) & as.numeric(soilAnalysis$siltContentPercent)<80){ # assumed to be %
       return(as.numeric(soilAnalysis$siltContentPercent))
     } else {
       log4r::error(my_logger, paste("silt content input = ", 
@@ -88,26 +93,17 @@ get_silt_content <- function(soilAnalysis, soilMapsData){
                                     "%. Check unit/values with farmer.", sep=""))
     }
   }
-  if (is.null(soilAnalysis$siltContentPercent)==TRUE){
-    return(soilMapsData$silt)
-  }
 }
 
 get_SOC_content <- function(soilAnalysis, soilMapsData){
-  if (is.null(soilAnalysis$carbonContent)==FALSE){ # SOC in t/ha = g/kg
-    if(4<as.numeric(soilAnalysis$carbonContent) & as.numeric(soilAnalysis$carbonContent)<40){
-      return(as.numeric(soilAnalysis$carbonContent))
-    } 
-    if (0.35<as.numeric(soilAnalysis$carbonContent) & as.numeric(soilAnalysis$carbonContent)<4){ #SOC in %
-      return(as.numeric(soilAnalysis$carbonContent)*10)
-    } else {
-      log4r::error(my_logger, paste("SOC content input = ", as.numeric(soilAnalysis$carbonContent),
-                                    soilAnalysis$carbonContentMetric,
-                                    ". Check unit/values with farmer.", sep=""))
-    }
+  if (is.null(soilAnalysis$clayContentPercent)==TRUE & is.null(soilAnalysis$organicMatterContent)==TRUE){ #case that SOC & SOM variables weren't found
+    return(soilMapsData$SOC)
   }
-  if (is.null(soilAnalysis$carbonContent)==TRUE & is.null(soilAnalysis$organicMatterContent)==FALSE){ # SOC in t/ha = g/kg
-    if(8<as.numeric(soilAnalysis$organicMatterContent) & as.numeric(soilAnalysis$organicMatterContent)<80 & soilAnalysis$organicMatterContentMetric!="%"){
+  if (is.null(soilAnalysis$carbonContent)==TRUE & is.null(soilAnalysis$organicMatterContent)==FALSE){ 
+    if (soilAnalysis$organicMatterContent==""){ # case that SOC variable wasn't found and SOM wasn't known
+      return(soilMapsData$SOC)
+    }
+    if(8<as.numeric(soilAnalysis$organicMatterContent) & as.numeric(soilAnalysis$organicMatterContent)<80 & soilAnalysis$organicMatterContentMetric!="%"){ # SOC in t/ha = g/kg
       return(as.numeric(soilAnalysis$organicMatterContent)*0.55)
     } 
     if (0.7<as.numeric(soilAnalysis$organicMatterContent) & as.numeric(soilAnalysis$organicMatterContent)<8){ #SOC in %
@@ -118,13 +114,28 @@ get_SOC_content <- function(soilAnalysis, soilMapsData){
                                     ". Check unit/values with farmer.", sep=""))
     }
   }
-  if (is.null(soilAnalysis$clayContentPercent)==TRUE & is.null(soilAnalysis$organicMatterContent)==TRUE){
+  if (soilAnalysis$carbonContent!=""){ # SOC variable exists and a value was entered
+    if(4<as.numeric(soilAnalysis$carbonContent) & as.numeric(soilAnalysis$carbonContent)<40){ # SOC in t/ha = g/kg
+      return(as.numeric(soilAnalysis$carbonContent))
+    } 
+    if (0.35<as.numeric(soilAnalysis$carbonContent) & as.numeric(soilAnalysis$carbonContent)<4){ #SOC in %
+      return(as.numeric(soilAnalysis$carbonContent)*10)
+    } else {
+      log4r::error(my_logger, paste("SOC content input = ", as.numeric(soilAnalysis$carbonContent),
+                                    soilAnalysis$carbonContentMetric,
+                                    ". Check unit/values with farmer.", sep=""))
+    }
+  } else { # SOC variable exists and no value was entered
     return(soilMapsData$SOC)
   }
 }
 
 get_bulk_density <- function(soilAnalysis, soilMapsData){
-  if (is.null(soilAnalysis$bulkDensity)==FALSE){
+  if (is.null(soilAnalysis$bulkDensity)==TRUE){
+    return(soilMapsData$bulk_density)
+  } else if (soilAnalysis$bulkDensity==""){
+    return(soilMapsData$bulk_density)
+  } else { # variable found and a value is provided
     if(0.7<as.numeric(soilAnalysis$bulkDensity) & as.numeric(soilAnalysis$bulkDensity)<2){
       return(as.numeric(soilAnalysis$bulkDensity))
     } else if (700<as.numeric(soilAnalysis$bulkDensity) & as.numeric(soilAnalysis$bulkDensity)<2000){
@@ -134,9 +145,6 @@ get_bulk_density <- function(soilAnalysis, soilMapsData){
                                     as.numeric(soilAnalysis$bulkDensity),
                                     ". Check unit/values with farmer.", sep=""))
     }
-  }
-  if (is.null(soilAnalysis$bulkDensity)==TRUE){
-    return(soilMapsData$bulk_density)
   }
 }
 
