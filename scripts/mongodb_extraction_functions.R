@@ -181,9 +181,11 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
           scenario = c(paste('year',j,sep="")), 
           manure_source = c("Hay"),
           quantity_kg_ha = c(as.numeric(year_chosen$hayStrawApplication[i])), 
-          imported_frac = c(as.numeric(year_chosen$percentageOfHayStrawImported[i])),# CAUTION this attribute need to be added in landUseSchema by Suhas
-          remaining_frac = c(ifelse(year_chosen$baleGrazing=="Yes",
-                                    as.numeric(year_chosen$residueLeftAfterBaleGrazing[i]),1))))
+          imported_frac = c(as.numeric(year_chosen$percentageOfHayStrawImported[i])),
+          remaining_frac = c(ifelse(is.null(year_chosen$baleGrazing[i])==TRUE, 1, #case were variable isn't found
+                                    ifelse(year_chosen$baleGrazing[i]==TRUE, #case were baleGrazing happens
+                                           as.numeric(year_chosen$residueLeftAfterBaleGrazing[i])/100,
+                                           1))))) #case were it doesn't happens meaning it is 100% amended to the soil
       }
     }
   }
