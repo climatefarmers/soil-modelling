@@ -58,8 +58,7 @@ fW.RothC.Modified_semiArid <-
             SOC,
             pE = 0.75, 
             bare_profile = c(T,T,T,F,F,F,F,F,F,T,T,T)) 
-  { 
-    percSOC = SOC/(bulkDensity*S.Thick)
+  { percSOC = SOC/(bulkDensity*S.Thick)
     t = 1
     alpha = exp(-14.96 + 0.03135*pClay + 0.0351*pSilt + 0.646*(percSOC*1.72) 
                 + 15.29*bulkDensity - 0.192*t - 4.671*bulkDensity**2 - 0.000781*pClay**2

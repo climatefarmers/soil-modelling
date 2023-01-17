@@ -74,7 +74,8 @@ get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_
 get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel){
   if(nrow(crop_inputs)==0){
     return(0)}
-  crops <- merge(x = filter(crop_inputs,scenario==scenario_chosen & parcel_ID==parcel), y = crop_data, by = "crop", all.x = TRUE)
+  crops <- merge(x = filter(crop_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
+                 y = filter(crop_data,pedo_climatic_area==farm_EnZ | is.na(pedo_climatic_area)==TRUE), by = "crop", all.x = TRUE)
   crops <- crops %>%
     mutate(c_shoot= ifelse(is.na(dry_residue)==FALSE, dry_residue*dry_c,
                            ifelse(is.na(fresh_residue)==FALSE, fresh_residue*dry*dry_c,
