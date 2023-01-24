@@ -88,8 +88,10 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
 get_monthly_cash_crop <- function(parcel_index = i, year_chosen){
   crop=rep(NA,12)
   for (k in c(1:12)){
-    if(is.na(year_chosen$cashCrop1MonthlyData[[parcel_index]][k])==FALSE){ # cash crop 1 checked for month k
-      if(is.na(year_chosen$cashCrop2MonthlyData[[parcel_index]][k])==FALSE){ # case of conflict, we assume that the correct is cash crop 1
+    if(is.na(year_chosen$cashCrop1MonthlyData[[parcel_index]][k])==FALSE &
+       year_chosen$cashCrop1MonthlyData[[parcel_index]][k] != "-"){ # cash crop 1 checked for month k
+      if(is.na(year_chosen$cashCrop2MonthlyData[[parcel_index]][k])==FALSE &
+         year_chosen$cashCrop2MonthlyData[[parcel_index]][k] != "-"){ # case of conflict, we assume that the correct is cash crop 1
         log4r::error(my_logger, paste('Two different cash crops checked for month ',k,' in parcel ',landUseSummaryOrPractices[[1]]$parcelName[i],'.',sep='')) # flag
       } else {
         crop[k] = year_chosen$cashCrop1MonthlyData[[parcel_index]][k]
@@ -522,10 +524,12 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     parcel_inputs <- rbind(parcel_inputs,data.frame(
       parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
-      area = ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
-                      landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+      area = ifelse(is.null(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE,
                     c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
-                    c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000)), # add a verification of consistence here
+                    ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
+                             landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+                           c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                           c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000))), # add a verification of consistence here
       longitude = c(new.as_numeric(extract_longitude_landUseSummaryOrPractices(landUseSummaryOrPractices,i))),
       latitude=c(new.as_numeric(extract_latitude_landUseSummaryOrPractices(landUseSummaryOrPractices,i)))))
   }
