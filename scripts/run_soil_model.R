@@ -1,4 +1,4 @@
-run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
+run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){ 
   
   log4r::info(my_logger, "run_soil_model.R started running")
   
@@ -8,7 +8,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   modelling_data_loc <- init_file$modelling_data_loc
   weatherDB_loc <- init_file$weatherDB_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
-  
+  Sys.setenv(
+    "AWS_ACCESS_KEY_ID" = init_file$AWS_ACCESS_KEY_ID,
+    "AWS_SECRET_ACCESS_KEY" = init_file$AWS_SECRET_ACCESS_KEY,
+    "AWS_DEFAULT_REGION" = init_file$AWS_DEFAULT_REGION
+  )
   if(is.na(farmId)==TRUE){
     if(is.na(JSONfile)==TRUE){stop("No farmId neither JSON files were feed to the model")}
     JSONfile_entered = TRUE
@@ -17,14 +21,17 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   if(is.na(farmId)==FALSE){
     if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
-    connection_string = init_file$connection_string
-    farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
+    connection_string = init_file$connection_string_prod
+    farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
+    #farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
-    #checking correctness and unicity
-    if (farms_everything$farmInfo$farmId==farmId){
-      log4r::info(my_logger,paste("farm with farmId =",farmId,"has been read succesfully. Mail adress =",farms_everything$farmInfo$email,'.',sep=" "))
-    }else {
-      log4r::error(my_logger, paste("Unique farmId wasn't found. Number of farmId matching =",length(farms_everything$farmInfo$farmId)))
+     #checking correctness and unicity
+    if (is.null(farms_everything$farmInfo)==TRUE){
+      log4r::error(my_logger, "farmId wasn't found.")
+    } else if (length(farms_everything$farmInfo$farmId)>1){
+      log4r::error(my_logger, paste("Multiple identical farmId were found. Number of farmId matching =",length(farms_everything$farmInfo$farmId),".",sep=""))
+    } else if (farms_everything$farmInfo$farmId==farmId){
+      log4r::info(my_logger,paste("farm with farmId = ",farmId," has been read succesfully. Mail adress = ",farms_everything$farmInfo$email,'.',sep=""))
     }
   }
   
@@ -32,12 +39,28 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   source(file.path(soil_loc, "modified_semiArid_functions.R"))
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"))
-  source(file.path(modelling_data_loc, "scripts/Climatic_zone_check_function.R"))
+  #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"))
   source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
   
+  if (length(farms_everything$farmInfo$farmId)>1){
+    farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""), limit = 1)
+    log4r::info(my_logger,paste("After multiple matches, only the first profile with farmId = ",farmId," was selected.",sep=""))
+  } 
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
+  
+  farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=connection_string)
+  
+  farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
+  if (length(unique(farm_EnZ$enz))==1){
+    farm_EnZ = unique(farm_EnZ$enz)
+    log4r::info(my_logger, paste("farmparameters collection contain unique info on EnZ for farmId", farmId, sep=" "))
+  } else if (length(unique(farm_EnZ$enz))==0){
+    log4r::error(my_logger, paste("Caution: farmparameters collection doesn't contain info on EnZ for farmId", farmId, sep=" "))
+  } else if (length(unique(farm_EnZ$enz))>1){
+    log4r::error(my_logger, paste("Caution: farmparameters collection content SEVERAL EnZ for farmId", farmId,"leading to conflicts", sep=" "))
+  }
   
   ################# Pulling calculation factors
   animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
@@ -45,15 +68,20 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
+  # TEMPORARY
+  grazing_factors$pasture_efficiency_potential_difference = 0.8
+  
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
+  soilMapsData=data.frame(SOC=c(1), clay=c(25), silt =c(30), bulk_density=c(1.2)) # to be pulled and processed from S3 bucket
   ################# Pulling inputs
+  
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
-  farm_EnZ <- clime.zone.check(init_file, lon_farmer, lat_farmer)
+  #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
@@ -61,20 +89,22 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
   crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, my_logger)
+  OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
+  clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
+  silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
+  bdod_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/bdod.csv",sep=""))
+  soilMapsData = data.frame(SOC=mean(OCS_df$`ocs_0-30cm_mean`), SOC_Q0.05=mean(OCS_df$`ocs_0-30cm_Q0.05`), SOC_Q0.95=mean(OCS_df$`ocs_0-30cm_Q0.95`),
+                            clay=mean(clay_df$`clay_5-15cm_mean`)/10, clay_Q0.05=mean(clay_df$`clay_5-15cm_Q0.05`)/10, clay_Q0.95=mean(clay_df$`clay_5-15cm_Q0.95`)/10,
+                            silt=mean(silt_df$`silt_5-15cm_mean`)/10, silt_Q0.05=mean(silt_df$`silt_5-15cm_Q0.05`)/10, silt_Q0.95=mean(silt_df$`silt_5-15cm_Q0.95`)/10,
+                            bulk_density=mean(bdod_df$`bdod_5-15cm_mean`)/100, bdod_Q0.05=mean(bdod_df$`bdod_5-15cm_Q0.05`)/100, bdod_Q0.95=mean(bdod_df$`bdod_5-15cm_Q0.95`)/100)# waiting for values from soil maps
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
   # Pulling factors depending on farmer inputs
   natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
-  soilMapsData = data.frame(SOC=25,
-                            clay=30,
-                            silt=30,
-                            bulk_density=1.2)# waiting for values from soil maps
   
-  ################# Weather data pulling
-  weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
+  ## Just checking grazing yields continuity
+  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock)
   
   ################# Calculations of C inputs per parcel and scenario
   baseline_chosen="baseline"
@@ -109,28 +139,38 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                      crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                      pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
   }
+  parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
   if (length(apply(is.na(parcel_Cinputs), 2, which))==0){
     log4r::info(my_logger,'parcel C inputs calculations have no NAs.',sep=" ")
   } else {
     log4r::error(my_logger, paste(length(apply(is.na(parcel_Cinputs), 2, which)),'NAs were found in parcel C inputs calculation results.'))
-  }
-  parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
+  }     
   #write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
-  ################# Calculations of additionnal C inputs compared to baseline per parcel and scenario
+  ################# Calculations of additional C inputs compared to baseline per parcel and scenario
   
   parcel_Cinputs_addition = merge(x= parcel_Cinputs, 
                                   y= parcel_inputs %>% 
                                     select(parcel_ID,area) %>%
                                     mutate(farm_frac= paste(round(area/sum(area)*100),'%')), by="parcel_ID") %>% 
     group_by(parcel_ID,farm_frac) %>% 
-    summarise(additional_Cinput_per_ha = round(tot_Cinputs[scenario=="future"] - tot_Cinputs[scenario==baseline_chosen],2), 
-              relative_increase=paste(as.character(as.integer((tot_Cinputs[scenario=="future"] 
-                                                               - tot_Cinputs[scenario==baseline_chosen])
-                                                              /tot_Cinputs[scenario==baseline_chosen]*100)),'%'),
-              additional_Cinput_total = round(unique(area)*(tot_Cinputs[scenario=="future"] - tot_Cinputs[scenario==baseline_chosen]),1))
+    mutate(Cinput_per_ha_project = sum(tot_Cinputs[scenario!=baseline_chosen & scenario!="year0"])/10) %>%
+    filter(scenario==baseline_chosen) %>%
+    mutate(additional_Cinput_per_ha = round(Cinput_per_ha_project - tot_Cinputs,2), 
+              relative_increase=paste(as.character(ifelse(tot_Cinputs==0,NA,as.integer((Cinput_per_ha_project- tot_Cinputs)
+                                                              /tot_Cinputs*100))),'%'),
+              additional_Cinput_total = round(unique(area)*(Cinput_per_ha_project - tot_Cinputs),1)) 
+  additional_Cinput_total_farm = sum(parcel_Cinputs_addition$additional_Cinput_total)
   parcel_Cinputs_addition = parcel_Cinputs_addition %>%
-    mutate(absolute_contibution = paste(round(100*additional_Cinput_total/sum(parcel_Cinputs_addition$additional_Cinput_total)),'%'))
+    mutate(absolute_contribution_perc = round(100*additional_Cinput_total/additional_Cinput_total_farm)) %>%
+    select(parcel_ID, farm_frac, additional_Cinput_per_ha, relative_increase, additional_Cinput_total, absolute_contribution_perc)
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
+    
+  
+  
+  ################# Weather data pulling
+  weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
+                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
+                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   # Calculating the average soil parameters among parcels
@@ -153,10 +193,10 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
          list(weather_data$past_evap),
          list(weather_data$future_evap_rcp4.5),
          list(c(30,rep(NA,11))), # modelled for 30 cm depth as recommended in IPCC Guidelines 2006
-         list(c(mean_SOC,rep(NA,11))),
-         list(c(mean_clay,rep(NA,11))),
-         list(c(mean_silt,rep(NA,11))),
-         list(c(mean_bulk_density,rep(NA,11))),
+         list(c(soilMapsData$SOC,rep(NA,11))),
+         list(c(soilMapsData$clay,rep(NA,11))),
+         list(c(soilMapsData$silt,rep(NA,11))),
+         list(c(soilMapsData$bulk_density,rep(NA,11))),
          list(c(0.75,rep(NA,11))), # mean potential transpiration to open-pan evaporation convertion rate
          list(c(1.0,rep(NA,11))))
   colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","SOC","clay","silt","bulk_density","pE","tilling_factor")
@@ -165,15 +205,15 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
   sd=data.frame(field_carbon_in=0.05,
-                dr_ratio = 0.05,
+                dr_ratio = 0.025,
                 temp = 0.025,
                 precip = 0.025,
                 evap = 0.025,
                 soil_thick = 0.025,
-                SOC = 0.025, # to be adapted to soil maps incertainty if used
-                clay = 0.025,
-                silt = 0.025, 
-                bulk_density = 0.025,
+                SOC = 0.025,#(soilMapsData$SOC_Q0.95-soilMapsData$SOC_Q0.05)/3, 
+                clay = 0.025,#(soilMapsData$clay_Q0.95-soilMapsData$clay_Q0.05)/5,# to be refined
+                silt = 0.025,#(soilMapsData$silt_Q0.95-soilMapsData$silt_Q0.05)/5, 
+                bulk_density = 0.025,#(soilMapsData$bdod_Q0.95-soilMapsData$bdod_Q0.05)/3,
                 pE = 0.025,
                 tilling_factor = 0.025)
   # Initialising data structures
@@ -186,17 +226,19 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                               yearly_certificates=c())
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
-  if (unique(unique(is.na(parcel_Cinputs))[1,])==FALSE){
+  
+  if (length(unique(is.na(parcel_Cinputs)))==1){
     log4r::info(my_logger,'Parcels loop starting smoothly. No NA in C inputs.',sep=" ")
   } else {
-    log4r::error(my_logger, 'NA C inputs (before entering in parcels loop).')
+    log4r::error(my_logger, 'CAUTION: there is NA in C inputs (before entering in calculation loops).')
   }
   #Chossing model version
-  model_version = ifelse(substring(farm_EnZ,1,13)=="Mediterranean","Semi-arid","Normal")
+  model_version = ifelse(sum(weather_data$past_precipitation)/sum(weather_data$past_pevap)<0.65 &
+                           sum(weather_data$past_precipitation)<600,"Semi-arid","Normal")
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 100
+  n_run = 3#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -214,6 +256,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                           tilling_factor = rnorm(1,1,sd$tilling_factor),
                           silt = rnorm(1,1,sd$silt),
                           bulk_density = rnorm(1,1,sd$bulk_density))
+    
     #Choose randomly one of the two climate scenari
     climate_scenario = ifelse(sample(0:1,1)==0, 'rcp4.5', 'rcp8.5')
     if (climate_scenario=='rcp4.5'){
@@ -404,30 +447,32 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # # print(graph)
   # # dev.off()
-  # 
-  # name<-paste("Results_farm_",project_name,sep = "")
-  # graph <- ggplot(data = step_in_table_final, aes(x=year, group = 1)) +
-  #   geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
-  #   geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
-  #                     ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
-  #   geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
-  #   geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
-  #                     ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
-  #   labs(title = name)+
-  #   xlab("Time")+
-  #   ylab("tCO2 sequestered (each year)")
-  # print(graph)
-  # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
-  # # print(graph)
-  # # dev.off()
 # 
-#   histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
-#     geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
-#     geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
-#                       ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
+#   name<-paste("Results_farm_",project_name,sep = "")
+#   graph <- ggplot(data = step_in_table_final, aes(x=year, group = 1)) +
+#     geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
+#     geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
+#                       ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
+#     geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
+#     geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
+#                       ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
+#     labs(title = name)+
 #     xlab("Time")+
-#     ylab("Number of certificates issuable (per year)")
-#   print(histogram)
+#     ylab("tCO2 sequestered (each year)")
+#   print(graph)
+#   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
+#   # print(graph)
+#   # dev.off()
+
+  histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
+    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
+    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
+                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
+    xlab("Time")+
+    ylab("Number of certificates issuable (per year)")
+  print(histogram)
+  log4r::info(my_logger,'Number of certificates issuable (total):',sum(step_in_table_final$yearly_certificates_mean),
+              '. Area considered: ', round(sum(parcel_inputs$area)),' ha.', sep="")
 
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
@@ -449,3 +494,4 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   }
   return(step_in_table_final) 
 }
+            
