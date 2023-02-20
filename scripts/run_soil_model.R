@@ -250,7 +250,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 5#100
+  n_run = 2#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -485,7 +485,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   print(histogram)
   log4r::info(my_logger,'Number of certificates issuable (total):',sum(step_in_table_final$yearly_certificates_mean),
               '. Area considered: ', round(sum(parcel_inputs$area)),' ha. Credits per year: ',
-              step_in_table_final$yearly_certificates_mean, sep="")
+              list(step_in_table_final$yearly_certificates_mean), sep="")
   write.csv(landUseType,file.path(init_file$soil_loc,"tests",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
@@ -497,7 +497,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
   
   # Use of parcels coordinates for other applications like co-benefits
-  jsonFileOfParcelsCoordinates = toJSON(landUseSummaryOrPractices[[1]]$coordinates[c(2,3)])
+  #jsonFileOfParcelsCoordinates = toJSON(landUseSummaryOrPractices[[1]]$coordinates[c(2,3)])
   #write(jsonFileOfParcelsCoordinates, paste("parcelsCoordinates_",farmId,".json",sep=""))
   
   if (length(apply(is.na(step_in_table_final), 2, which))==0){
