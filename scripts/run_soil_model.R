@@ -25,7 +25,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
     #farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
-     #checking correctness and unicity
+    #checking correctness and unicity
     if (is.null(farms_everything$farmInfo)==TRUE){
       log4r::error(my_logger, "farmId wasn't found.")
     } else if (length(farms_everything$farmInfo$farmId)>1){
@@ -134,7 +134,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                        scenario=scenario,
                                        add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
                                        agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
-                                                              #                              scenario, parcel, lat_farmer),
+                                       #                              scenario, parcel, lat_farmer),
                                        animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                        crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                        pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -146,7 +146,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                      add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
                                      # TREES NOT COUNTED BEFORE GOOD CHECK OF DATA QUALITY
                                      agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
-                                                            #                               scenario, parcel, lat_farmer),
+                                     #                               scenario, parcel, lat_farmer),
                                      animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                      crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                      pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -168,15 +168,15 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     mutate(Cinput_per_ha_project = sum(tot_Cinputs[scenario!=baseline_chosen & scenario!="year0"])/10) %>%
     filter(scenario==baseline_chosen) %>%
     mutate(additional_Cinput_per_ha = round(Cinput_per_ha_project - tot_Cinputs,2), 
-              relative_increase=paste(as.character(ifelse(tot_Cinputs==0,NA,as.integer((Cinput_per_ha_project- tot_Cinputs)
-                                                              /tot_Cinputs*100))),'%'),
-              additional_Cinput_total = round(unique(area)*(Cinput_per_ha_project - tot_Cinputs),1)) 
+           relative_increase=paste(as.character(ifelse(tot_Cinputs==0,NA,as.integer((Cinput_per_ha_project- tot_Cinputs)
+                                                                                    /tot_Cinputs*100))),'%'),
+           additional_Cinput_total = round(unique(area)*(Cinput_per_ha_project - tot_Cinputs),1)) 
   additional_Cinput_total_farm = sum(parcel_Cinputs_addition$additional_Cinput_total)
   parcel_Cinputs_addition = parcel_Cinputs_addition %>%
     mutate(absolute_contribution_perc = round(100*additional_Cinput_total/additional_Cinput_total_farm)) %>%
     select(parcel_ID, farm_frac, additional_Cinput_per_ha, relative_increase, additional_Cinput_total, absolute_contribution_perc)
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
-    
+  
   
   
   ################# Weather data pulling
@@ -214,7 +214,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","SOC","clay","silt","bulk_density","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
-    ## Modelling perform several times with different inputs
+  ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
   sd=data.frame(field_carbon_in=0.15,
                 dr_ratio = 0.025,
@@ -353,20 +353,20 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       batch$tilling_factor = (tilling_inputs %>% filter(scenario==paste("year",N_1,sep="") & parcel_ID==parcel))$tilling_factor
       time_horizon = 1
       C0_df_holistic_yearly <- calc_carbon_over_time(time_horizon,
-                                              field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                              dr_ratio = rep(batch$dr_ratio[1],time_horizon),
-                                              bare = batch$bare,
-                                              temp = batch$future_temp,
-                                              precip = batch$future_precip,
-                                              evap = batch$future_evap,
-                                              soil_thick = batch$soil_thick[1],
-                                              clay = batch$clay[1],
-                                              pE = batch$pE[1],
-                                              PS = starting_soil_content,
-                                              tilling_factor = batch$tilling_factor[1],
-                                              version=model_version,
-                                              silt = batch$silt[1],
-                                              bulk_density = batch$bulk_density[1])
+                                                     field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
+                                                     dr_ratio = rep(batch$dr_ratio[1],time_horizon),
+                                                     bare = batch$bare,
+                                                     temp = batch$future_temp,
+                                                     precip = batch$future_precip,
+                                                     evap = batch$future_evap,
+                                                     soil_thick = batch$soil_thick[1],
+                                                     clay = batch$clay[1],
+                                                     pE = batch$pE[1],
+                                                     PS = starting_soil_content,
+                                                     tilling_factor = batch$tilling_factor[1],
+                                                     version=model_version,
+                                                     silt = batch$silt[1],
+                                                     bulk_density = batch$bulk_density[1])
       starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
       C0_df_holistic= C0_df_holistic_yearly
       # next years
@@ -377,20 +377,20 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
         batch$tilling_factor = (tilling_inputs %>% filter(scenario==paste("year",N,sep="") & parcel_ID==parcel))$tilling_factor
         time_horizon = 1
         C0_df_holistic_yearly <- calc_carbon_over_time(time_horizon,
-                                                field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
-                                                dr_ratio = rep(batch$dr_ratio[1],time_horizon),
-                                                bare = batch$bare,
-                                                temp = batch$future_temp,
-                                                precip = batch$future_precip,
-                                                evap = batch$future_evap,
-                                                soil_thick = batch$soil_thick[1],
-                                                clay = batch$clay[1],
-                                                pE = batch$pE[1],
-                                                PS = starting_holistic_soil_content,
-                                                tilling_factor = batch$tilling_factor[1],
-                                                version=model_version,
-                                                silt = batch$silt[1],
-                                                bulk_density = batch$bulk_density[1])
+                                                       field_carbon_in = rep(batch$field_carbon_in[1],time_horizon),
+                                                       dr_ratio = rep(batch$dr_ratio[1],time_horizon),
+                                                       bare = batch$bare,
+                                                       temp = batch$future_temp,
+                                                       precip = batch$future_precip,
+                                                       evap = batch$future_evap,
+                                                       soil_thick = batch$soil_thick[1],
+                                                       clay = batch$clay[1],
+                                                       pE = batch$pE[1],
+                                                       PS = starting_holistic_soil_content,
+                                                       tilling_factor = batch$tilling_factor[1],
+                                                       version=model_version,
+                                                       silt = batch$silt[1],
+                                                       bulk_density = batch$bulk_density[1])
         starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
         C0_df_holistic= rbind(C0_df_holistic,C0_df_holistic_yearly)
       }
@@ -459,23 +459,23 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # # print(graph)
   # # dev.off()
-# 
-#   name<-paste("Results_farm_",project_name,sep = "")
-#   graph <- ggplot(data = step_in_table_final, aes(x=year, group = 1)) +
-#     geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
-#     geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
-#                       ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
-#     geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
-#     geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
-#                       ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
-#     labs(title = name)+
-#     xlab("Time")+
-#     ylab("tCO2 sequestered (each year)")
-#   print(graph)
-#   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
-#   # print(graph)
-#   # dev.off()
-
+  # 
+  #   name<-paste("Results_farm_",project_name,sep = "")
+  #   graph <- ggplot(data = step_in_table_final, aes(x=year, group = 1)) +
+  #     geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
+  #     geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
+  #                       ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
+  #     geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
+  #     geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
+  #                       ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
+  #     labs(title = name)+
+  #     xlab("Time")+
+  #     ylab("tCO2 sequestered (each year)")
+  #   print(graph)
+  #   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
+  #   # print(graph)
+  #   # dev.off()
+  
   histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
     geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
     geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
@@ -507,4 +507,3 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   }
   return(step_in_table_final) 
 }
-            
