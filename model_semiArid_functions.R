@@ -238,7 +238,7 @@ calc_carbon_over_time <- function(time_horizon = 10,
   
   if(length(dr_ratios) != length(field_carbon_in)){stop("Field_carbon_in and dr_ratios should have same length, 1 entry per year")}
   
-  SOC = sum(starting_soil_content[c(1:5)])
+  SOC = sum(PS[c(1:5)])
   
   xi_frame <- prep_soil_moisture_factor(
     time_horizon = 1, 
