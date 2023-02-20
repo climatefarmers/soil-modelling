@@ -97,5 +97,6 @@ get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, p
   #   print("No yield data")
   # }
   tC_inputs_per_ha_per_year = sum(crops$c_inputs)
+  
   return(tC_inputs_per_ha_per_year)
 }

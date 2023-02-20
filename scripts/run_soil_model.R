@@ -50,6 +50,17 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
   
+  # # To be implemented
+  # if (copy_baseline_to_future == TRUE){
+  #   for(i in c(1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][["year0"]]}
+  #   for(i in c(1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["currentManagement"]][[1]]}
+  # }
+  # if (copy_yearX_to_following_years == TRUE){
+  #   #last_year_to_duplicate = 1
+  #   for(i in c(last_year_to_duplicate+1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+  #   for(i in c(last_year_to_duplicate+1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+  # }
+  
   farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=connection_string)
   
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
@@ -69,7 +80,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
   # TEMPORARY
-  grazing_factors$pasture_efficiency_potential_difference = 0.8
+  grazing_factors$pasture_efficiency_potential_difference = 0.25
   
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
@@ -87,8 +98,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
-  crop_inputs <- get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
-  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, my_logger)
+  crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
+  landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
+  ## Just checking grazing yields continuity
+  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock)
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger)
   OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
   clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
   silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
@@ -102,9 +116,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Pulling factors depending on farmer inputs
   natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
-  
-  ## Just checking grazing yields continuity
-  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock)
   
   ################# Calculations of C inputs per parcel and scenario
   baseline_chosen="baseline"
@@ -122,8 +133,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                             data.frame(parcel_ID=parcel,
                                        scenario=scenario,
                                        add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
-                                       agroforestry_Cinputs=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
-                                                                                             scenario, parcel, lat_farmer),
+                                       agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                                              #                              scenario, parcel, lat_farmer),
                                        animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                        crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                        pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -133,8 +144,9 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                           data.frame(parcel_ID=parcel,
                                      scenario=scenario,
                                      add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
-                                     agroforestry_Cinputs=get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
-                                                                                           scenario, parcel, lat_farmer),
+                                     # TREES NOT COUNTED BEFORE GOOD CHECK OF DATA QUALITY
+                                     agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                                            #                               scenario, parcel, lat_farmer),
                                      animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                      crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
                                      pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
@@ -204,7 +216,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   colnames(mean_input) = colnames_ranges
     ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
-  sd=data.frame(field_carbon_in=0.05,
+  sd=data.frame(field_carbon_in=0.15,
                 dr_ratio = 0.025,
                 temp = 0.025,
                 precip = 0.025,
@@ -238,7 +250,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 3#100
+  n_run = 5#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -385,7 +397,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       
       all_results_batch <- rbind(all_results_batch,data.frame(run=run_ID,
                                                               parcel_ID=rep(parcel,264),
-                                                              time=rep(seq(as.Date("2021-1-1"), as.Date("2031-12-31"), by = "month"),2),
+                                                              time=rep(seq(as.Date("2020-1-1"), as.Date("2030-12-31"), by = "month"),2),
                                                               SOC=c(C0_df$TOT,C0_df_mdf$TOT,C0_df$TOT,C0_df_holistic$TOT),
                                                               scenario=c(rep("baseline",132),rep("holistic",132)),
                                                               farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
@@ -434,16 +446,16 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   # # PLOTTING DATA - NO NEED TO BE DEPLOYED YET
   # 
-  # name<-paste("SOC_results_farm_",project_name,sep = "")
-  # graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
-  #   geom_line()+
-  #   #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
-  #   scale_color_manual(values = c("darkred","#5CB85C"),labels = c("Modern-day","Holistic"))+
-  #   theme(legend.position = "bottom")+
-  #   labs(title = name)+
-  #   xlab("Time")+
-  #   ylab("SOC (in tons per hectare)")
-  # print(graph)
+  name<-paste("SOC_results_farm_",project_name,sep = "")
+  graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
+    geom_line()+
+    #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
+    scale_color_manual(values = c("darkred","#5CB85C"),labels = c("Modern-day","Holistic"))+
+    theme(legend.position = "bottom")+
+    labs(title = name)+
+    xlab("Time")+
+    ylab("SOC (in tons per hectare)")
+  print(graph)
   # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # # print(graph)
   # # dev.off()
@@ -472,8 +484,9 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     ylab("Number of certificates issuable (per year)")
   print(histogram)
   log4r::info(my_logger,'Number of certificates issuable (total):',sum(step_in_table_final$yearly_certificates_mean),
-              '. Area considered: ', round(sum(parcel_inputs$area)),' ha.', sep="")
-
+              '. Area considered: ', round(sum(parcel_inputs$area)),' ha. Credits per year: ',
+              step_in_table_final$yearly_certificates_mean, sep="")
+  write.csv(landUseType,file.path(init_file$soil_loc,"tests",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # print(histogram)
