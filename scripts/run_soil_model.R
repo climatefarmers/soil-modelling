@@ -83,6 +83,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   grazing_factors$pasture_efficiency_potential_difference = 0.25
   
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
+  natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
+    filter(pedo_climatic_area==farm_EnZ) 
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
@@ -113,9 +115,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                             bulk_density=mean(bdod_df$`bdod_5-15cm_mean`)/100, bdod_Q0.05=mean(bdod_df$`bdod_5-15cm_Q0.05`)/100, bdod_Q0.95=mean(bdod_df$`bdod_5-15cm_Q0.95`)/100)# waiting for values from soil maps
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
-  # Pulling factors depending on farmer inputs
-  natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
-    filter(pedo_climatic_area==farm_EnZ) 
   
   ################# Calculations of C inputs per parcel and scenario
   baseline_chosen="baseline"

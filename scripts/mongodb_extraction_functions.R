@@ -600,6 +600,91 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
   return(crop_inputs)
 }
 #schema_fixed
+get_fertilizer_inputs = function(landUseSummaryOrPractices){
+  # takes landUseSummaryOrPractices from farms collection
+  # extracts fertilizer inputs dataframe 
+  fertilizer_inputs = data.frame(parcel_ID = c(), field_area = c(), scenario = c(), usage_boolean=c(), 
+                                 fertilizer_type=c(), quantity_t_ha=c(), n_content_perc=c())
+  list_missing_data = c()
+  for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
+    for (j in c(0:10)){
+      year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
+      fertilizer_inputs <- rbind(fertilizer_inputs,data.frame(
+        parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+        field_area = ifelse(is.null(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE,
+                            c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                            ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
+                                     landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+                                   c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                                   c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000))), # add a verification of consistence here
+        scenario = c(paste('year',j,sep="")),
+        usage_boolean = year_chosen$syntheticFertilizer$usage[i],
+        fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
+        quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
+        n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+      if (j==0){
+        fertilizer_inputs <- rbind(fertilizer_inputs,data.frame(
+          parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+          field_area = ifelse(is.null(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE,
+                              c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                              ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
+                                       landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+                                     c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                                     c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000))), # add a verification of consistence here
+          scenario = c("baseline"),
+          usage_boolean = year_chosen$syntheticFertilizer$usage[i],
+          fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
+          quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
+          n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+      }
+      last_index = nrow(fertilizer_inputs)
+      if (fertilizer_inputs$usage_boolean[last_index]==TRUE){
+        if (quantity_t_ha==0){
+          list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
+                                                        ' (year',j,"): quantity_t_ha missing", sep=""))
+        }
+        if (n_content_perc==0){
+          list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
+                                                        ' (year',j,"): n_content_perc missing", sep=""))
+        }
+      }
+    }
+  }
+  if (length(list_missing_data)>0){
+    log4r::error(my_logger, paste('CAUTION: Fertilizer data: ',list(list_missing_data),'.', paste=''))
+  }
+  return(fertilizer_inputs)
+}
+#schema_fixed
+get_fuel_inputs = function(landUseSummaryOrPractices,livestock){
+  # takes landUseSummaryOrPractices & livestock from farms collection
+  # extracts animal inputs dataframe 
+  fuel_inputs = data.frame(scenario = c(), typeOfFuel = c(), amountInLiters = c())
+  status ="currentFuelUsage"
+  for (k in c(1:nrow(fuel[[status]][[1]]))){
+    if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE){next}
+    fuel_inputs <- rbind(fuel_inputs,data.frame(
+      scenario = c(paste('year',0,sep="")), 
+      fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+      value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+    fuel_inputs <- rbind(fuel_inputs,data.frame(
+      scenario = c("baseline"), 
+      fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+      value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+  }
+  status = "futureFuelUsage"
+  for (year in c(1:10)){
+    for (k in c(1:nrow(fuel[[status]][[1]]))){
+      if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE){next}
+      fuel_inputs <- rbind(fuel_inputs,data.frame(
+        scenario = c(paste('year',year,sep="")), 
+        fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+        value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+    }
+  }
+  return(fuel_inputs)
+}
+
 get_land_use_type <- function(landUseSummaryOrPractices, parcel_inputs){
   landUseType = data.frame(parcel_ID = c(), area = c(), uniqueLandUseType_Yes_No = c(), landUseType = c())
   temp_df=data.frame(landUseType_year0 = rep("-",nrow(parcel_inputs)))
