@@ -94,8 +94,7 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
   return(bale_grazing_yield+grazing_yield)
 }
 
-
-get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
+get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal_factors){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts the overall grazing yield and bale grazing yield from the whole farm
   total_grazing_table = data.frame(scenario = c(), bale_grazing_total = c(), grazing_total = c())
@@ -130,13 +129,13 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
       grazing_total = c(grazing_yield)))
   }
   # Supposed estimated grazing needs :
-  animals = data.frame(scenario = c(), species = c(), n_animals = c(), grazing_days = c())
+  animals = data.frame(scenario = c(), manure_source = c(), n_animals = c(), grazing_days = c())
   status ="currentManagement"
   for (k in c(1:nrow(livestock[[status]][[1]]))){
     if (is.na(livestock[[status]][[1]]$species[[k]])==TRUE){next}
     animals = rbind(animals, data.frame(
       scenario = c("year0"),
-      species = c(livestock[[status]][[1]]$species[[k]]),
+      manure_source = c(livestock[[status]][[1]]$species[[k]]),
       n_animals = c(new.as_numeric(livestock[[status]][[1]]$numberOfHeads[[k]])), 
       grazing_days = c(new.as_numeric(livestock[[status]][[1]]$grazingOrPasturedDaysPerYear[[k]]))
     ))
@@ -147,13 +146,13 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
       if (is.na(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]])==TRUE){next}
       animals <- rbind(animals,data.frame(
         scenario = paste('year',year,sep=""), 
-        species = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
+        manure_source = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
         n_animals = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$numberOfHeads[[k]])), 
         grazing_days = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$grazingOrPasturedDaysPerYear[[k]]))
       ))
     }
   }
-  animals = merge(x = animals, y = animal_factors, by = "species", all.x = TRUE)
+  animals = merge(x = animals, y = animal_factors, by = "manure_source", all.x = TRUE)
   animal_needs_table = animals %>%
     mutate(yearly_grazing_needs_tDM = n_animals*mass_kg_per_animal*grazing_days*0.025/1000)
   total_grazing_needs_table = animal_needs_table  %>%
@@ -656,30 +655,30 @@ get_fertilizer_inputs = function(landUseSummaryOrPractices){
   return(fertilizer_inputs)
 }
 #schema_fixed
-get_fuel_inputs = function(landUseSummaryOrPractices,livestock){
+get_fuel_inputs = function(landUseSummaryOrPractices,fuel){
   # takes landUseSummaryOrPractices & livestock from farms collection
   # extracts animal inputs dataframe 
   fuel_inputs = data.frame(scenario = c(), typeOfFuel = c(), amountInLiters = c())
   status ="currentFuelUsage"
   for (k in c(1:nrow(fuel[[status]][[1]]))){
-    if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE){next}
+    if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE | fuel[[status]][[1]]$typeOfFuel[[k]]==""){next}
     fuel_inputs <- rbind(fuel_inputs,data.frame(
       scenario = c(paste('year',0,sep="")), 
       fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
-      value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+      value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
     fuel_inputs <- rbind(fuel_inputs,data.frame(
       scenario = c("baseline"), 
       fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
-      value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+      value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
   }
   status = "futureFuelUsage"
   for (year in c(1:10)){
     for (k in c(1:nrow(fuel[[status]][[1]]))){
-      if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE){next}
+      if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE | fuel[[status]][[1]]$typeOfFuel[[k]]==""){next}
       fuel_inputs <- rbind(fuel_inputs,data.frame(
         scenario = c(paste('year',year,sep="")), 
         fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
-        value_l = fuel[[status]][[1]]$amountInLiters[[k]]))
+        value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
     }
   }
   return(fuel_inputs)
