@@ -3,8 +3,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   log4r::info(my_logger, "run_soil_model.R started running")
   
   soil_loc <-init_file$soil_loc
-  project_loc <- init_file$project_loc
-  project_name <- init_file$project_name
   modelling_data_loc <- init_file$modelling_data_loc
   weatherDB_loc <- init_file$weatherDB_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
