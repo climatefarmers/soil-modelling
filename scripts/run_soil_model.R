@@ -21,7 +21,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   if(is.na(farmId)==FALSE){
     if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
-    connection_string = init_file$connection_string_prod
+    connection_string = init_file$connection_string_test
     farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
     #farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
