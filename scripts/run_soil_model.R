@@ -101,7 +101,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
   landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
   ## Just checking grazing yields continuity
-  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock)
+  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock, animal_factors)
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger)
   OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
   clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))

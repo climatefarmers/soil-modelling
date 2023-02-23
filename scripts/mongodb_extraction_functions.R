@@ -152,7 +152,7 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
       ))
     }
   }
-  animals = merge(x = animals, y = animal_factors, by = "manure_source", all.x = TRUE)
+  animals = merge(x = animals, y = animal_factors, by = "species", all.x = TRUE)
   animal_needs_table = animals %>%
     mutate(yearly_grazing_needs_tDM = n_animals*mass_kg_per_animal*grazing_days*0.025/1000)
   total_grazing_needs_table = animal_needs_table  %>%
