@@ -19,8 +19,12 @@
 
 # RStudio files
 .Rproj.user/
+<<<<<<< HEAD
+*.Rproj
+=======
 *.Proj
 
+>>>>>>> e731f43054144415bfca58774d597601a4091b65
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
@@ -45,10 +49,8 @@ vignettes/*.pdf
 
 # Python
 __pycache__/
-
 #logs
 *.log
-
 # files containing sensitive data
 carbonplus_trigger_Rscript.R
 init_file.json

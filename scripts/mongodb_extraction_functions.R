@@ -94,8 +94,7 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
   return(bale_grazing_yield+grazing_yield)
 }
 
-
-get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
+get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal_factors){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts the overall grazing yield and bale grazing yield from the whole farm
   total_grazing_table = data.frame(scenario = c(), bale_grazing_total = c(), grazing_total = c())
@@ -130,13 +129,13 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
       grazing_total = c(grazing_yield)))
   }
   # Supposed estimated grazing needs :
-  animals = data.frame(scenario = c(), species = c(), n_animals = c(), grazing_days = c())
+  animals = data.frame(scenario = c(), manure_source = c(), n_animals = c(), grazing_days = c())
   status ="currentManagement"
   for (k in c(1:nrow(livestock[[status]][[1]]))){
     if (is.na(livestock[[status]][[1]]$species[[k]])==TRUE){next}
     animals = rbind(animals, data.frame(
       scenario = c("year0"),
-      species = c(livestock[[status]][[1]]$species[[k]]),
+      manure_source = c(livestock[[status]][[1]]$species[[k]]),
       n_animals = c(new.as_numeric(livestock[[status]][[1]]$numberOfHeads[[k]])), 
       grazing_days = c(new.as_numeric(livestock[[status]][[1]]$grazingOrPasturedDaysPerYear[[k]]))
     ))
@@ -147,13 +146,13 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock){
       if (is.na(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]])==TRUE){next}
       animals <- rbind(animals,data.frame(
         scenario = paste('year',year,sep=""), 
-        species = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
+        manure_source = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
         n_animals = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$numberOfHeads[[k]])), 
         grazing_days = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$grazingOrPasturedDaysPerYear[[k]]))
       ))
     }
   }
-  animals = merge(x = animals, y = animal_factors, by = "species", all.x = TRUE)
+  animals = merge(x = animals, y = animal_factors, by = "manure_source", all.x = TRUE)
   animal_needs_table = animals %>%
     mutate(yearly_grazing_needs_tDM = n_animals*mass_kg_per_animal*grazing_days*0.025/1000)
   total_grazing_needs_table = animal_needs_table  %>%
@@ -475,8 +474,8 @@ get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, far
 }
 #schema_fixed
 get_crop_inputs <- function(landUseSummaryOrPractices){
-  crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), n_fixing_frac = c(), 
-                           dry_yield = c(), fresh_yield = c(), dry_residue = c(), fresh_residue = c(), 
+  crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), dry_yield = c(), 
+                           fresh_yield = c(), dry_residue = c(), fresh_residue = c(), 
                            dry_agb_peak = c(), fresh_agb_peak = c() )
   for (j in c(0:10)){ #years
     year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
@@ -515,7 +514,6 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
                                  data.frame(scenario = c(paste('year',j,sep="")),
                                             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]),
                                             crop = crop_chosen,
-                                            n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
                                             dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
                                             fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
                                             dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left+grazing_yield*0.15,0)), 
@@ -535,7 +533,6 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
                                             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]),
                                             # assumed to be "generic grass" if no cash crop
                                             crop = "Non-N-fixing dry forages",# SHOULD WE DIFFERENTIATE PRODUCTIVE FALLOW AND COVER CROPS ?
-                                            n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
                                             dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
                                             fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
                                             dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left+grazing_yield*0.15,0)), 
@@ -579,7 +576,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
         if(nrow(crop_inputs %>% filter(crop=='Wheat' | crop=='Winter wheat' | crop=='Spring wheat'))>0){#if we have wheat data from the farmer
           crop_inputs_temp <- crop_inputs %>% filter(crop=='Wheat' | crop=='Winter wheat' | crop=='Spring wheat') %>%
             summarize(parcel_ID=landUseSummaryOrPractices[[1]]$parcelName[i], scenario='baseline',
-                      crop = 'Wheat', n_fixing_frac=0,
+                      crop = 'Wheat', 
                       dry_yield=mean(dry_agb_peak)*0.95, fresh_yield = mean(fresh_agb_peak)*0.95,
                       dry_residue=mean(dry_agb_peak)*0.05, fresh_residue=mean(fresh_agb_peak)*0.05, #assumption that only 5% of aboveground biomass  is left-on-site
                       dry_agb_peak=mean(dry_agb_peak), fresh_agb_peak=mean(fresh_agb_peak))
@@ -588,7 +585,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
           # if no wheat yield data is provided by the farmer
           dry_agb_peak = (crop_data %>% filter(pedo_climatic_area==farm_EnZ))$dry_yield
           crop_inputs_temp <- data.frame(parcel_ID=landUseSummaryOrPractices[[1]]$parcelName[i], scenario='baseline',
-                                         crop = 'Wheat', n_fixing_frac=0,
+                                         crop = 'Wheat', 
                                          dry_yield=mean(dry_agb_peak)*0.95, fresh_yield = 0,
                                          dry_residue=mean(dry_agb_peak)*0.05, fresh_residue=0, #assumption that only 5% of aboveground biomass is left-on-site
                                          dry_agb_peak=mean(dry_agb_peak), fresh_agb_peak=0)
@@ -600,6 +597,91 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
   return(crop_inputs)
 }
 #schema_fixed
+get_fertilizer_inputs = function(landUseSummaryOrPractices){
+  # takes landUseSummaryOrPractices from farms collection
+  # extracts fertilizer inputs dataframe 
+  fertilizer_inputs = data.frame(parcel_ID = c(), field_area = c(), scenario = c(), usage_boolean=c(), 
+                                 fertilizer_type=c(), quantity_t_ha=c(), n_content_perc=c())
+  list_missing_data = c()
+  for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
+    for (j in c(0:10)){
+      year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
+      fertilizer_inputs <- rbind(fertilizer_inputs,data.frame(
+        parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+        field_area = ifelse(is.null(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE,
+                            c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                            ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
+                                     landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+                                   c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                                   c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000))), # add a verification of consistence here
+        scenario = c(paste('year',j,sep="")),
+        usage_boolean = year_chosen$syntheticFertilizer$usage[i],
+        fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
+        quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
+        n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+      if (j==0){
+        fertilizer_inputs <- rbind(fertilizer_inputs,data.frame(
+          parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+          field_area = ifelse(is.null(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE,
+                              c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                              ifelse(is.na(landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i])==TRUE |
+                                       landUseSummaryOrPractices[[1]]$usingManuallyEnteredArea[i] == FALSE, # means that no corrected value was provided by the farmer
+                                     c(new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000),
+                                     c(new.as_numeric(landUseSummaryOrPractices[[1]]$manuallyEnteredArea[i])/10000))), # add a verification of consistence here
+          scenario = c("baseline"),
+          usage_boolean = year_chosen$syntheticFertilizer$usage[i],
+          fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
+          quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
+          n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+      }
+      last_index = nrow(fertilizer_inputs)
+      if (fertilizer_inputs$usage_boolean[last_index]==TRUE){
+        if (quantity_t_ha==0){
+          list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
+                                                        ' (year',j,"): quantity_t_ha missing", sep=""))
+        }
+        if (n_content_perc==0){
+          list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
+                                                        ' (year',j,"): n_content_perc missing", sep=""))
+        }
+      }
+    }
+  }
+  if (length(list_missing_data)>0){
+    log4r::error(my_logger, paste('CAUTION: Fertilizer data: ',list(list_missing_data),'.', paste=''))
+  }
+  return(fertilizer_inputs)
+}
+#schema_fixed
+get_fuel_inputs = function(landUseSummaryOrPractices,fuel){
+  # takes landUseSummaryOrPractices & livestock from farms collection
+  # extracts animal inputs dataframe 
+  fuel_inputs = data.frame(scenario = c(), typeOfFuel = c(), amountInLiters = c())
+  status ="currentFuelUsage"
+  for (k in c(1:nrow(fuel[[status]][[1]]))){
+    if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE | fuel[[status]][[1]]$typeOfFuel[[k]]==""){next}
+    fuel_inputs <- rbind(fuel_inputs,data.frame(
+      scenario = c(paste('year',0,sep="")), 
+      fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+      value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
+    fuel_inputs <- rbind(fuel_inputs,data.frame(
+      scenario = c("baseline"), 
+      fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+      value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
+  }
+  status = "futureFuelUsage"
+  for (year in c(1:10)){
+    for (k in c(1:nrow(fuel[[status]][[1]]))){
+      if (is.na(fuel[[status]][[1]]$typeOfFuel[[k]])==TRUE | fuel[[status]][[1]]$typeOfFuel[[k]]==""){next}
+      fuel_inputs <- rbind(fuel_inputs,data.frame(
+        scenario = c(paste('year',year,sep="")), 
+        fuel_type = fuel[[status]][[1]]$typeOfFuel[[k]],
+        value_l = new.as_numeric(fuel[[status]][[1]]$amountInLiters[[k]])))
+    }
+  }
+  return(fuel_inputs)
+}
+
 get_land_use_type <- function(landUseSummaryOrPractices, parcel_inputs){
   landUseType = data.frame(parcel_ID = c(), area = c(), uniqueLandUseType_Yes_No = c(), landUseType = c())
   temp_df=data.frame(landUseType_year0 = rep("-",nrow(parcel_inputs)))
