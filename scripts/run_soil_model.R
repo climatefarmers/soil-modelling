@@ -47,7 +47,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
   
-  # # To be implemented
+  # To be implemented
   # if (copy_baseline_to_future == TRUE){
   #   for(i in c(1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][["year0"]]}
   #   for(i in c(1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["currentManagement"]][[1]]}
@@ -76,9 +76,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
-  # TEMPORARY
-  grazing_factors$pasture_efficiency_potential_difference = 0.25
-  
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
   natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
     filter(pedo_climatic_area==farm_EnZ) 
