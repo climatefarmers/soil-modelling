@@ -4,7 +4,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   soil_loc <-init_file$soil_loc
   modelling_data_loc <- init_file$modelling_data_loc
-  weatherDB_loc <- init_file$weatherDB_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
   Sys.setenv(
     "AWS_ACCESS_KEY_ID" = init_file$AWS_ACCESS_KEY_ID,
@@ -19,7 +18,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   if(is.na(farmId)==FALSE){
     if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
-    connection_string = init_file$connection_string_test
+    connection_string = init_file$connection_string_prod
     farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
     #farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
@@ -213,7 +212,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   colnames(mean_input) = colnames_ranges
   ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
-  sd=data.frame(field_carbon_in=0.15,
+  sd=data.frame(field_carbon_in=0.1,
                 dr_ratio = 0.025,
                 temp = 0.025,
                 precip = 0.025,
@@ -247,7 +246,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 2#100
+  n_run = 5#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -443,7 +442,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   
   # # PLOTTING DATA - NO NEED TO BE DEPLOYED YET
   # 
-  name<-paste("SOC_results_farm_",project_name,sep = "")
+  name<-paste("SOC_results_farm_",farmId,sep = "")
   graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
     geom_line()+
     #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
@@ -483,7 +482,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   log4r::info(my_logger,'Number of certificates issuable (total):',sum(step_in_table_final$yearly_certificates_mean),
               '. Area considered: ', round(sum(parcel_inputs$area)),' ha. Credits per year: ',
               list(step_in_table_final$yearly_certificates_mean), sep="")
-  write.csv(landUseType,file.path(init_file$soil_loc,"tests",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
+  write.csv(landUseType,file.path(init_file$soil_loc,"logs",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # print(histogram)

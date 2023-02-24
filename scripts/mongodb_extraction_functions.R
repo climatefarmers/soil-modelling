@@ -129,13 +129,13 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
       grazing_total = c(grazing_yield)))
   }
   # Supposed estimated grazing needs :
-  animals = data.frame(scenario = c(), manure_source = c(), n_animals = c(), grazing_days = c())
+  animals = data.frame(scenario = c(), species = c(), n_animals = c(), grazing_days = c())
   status ="currentManagement"
   for (k in c(1:nrow(livestock[[status]][[1]]))){
     if (is.na(livestock[[status]][[1]]$species[[k]])==TRUE){next}
     animals = rbind(animals, data.frame(
       scenario = c("year0"),
-      manure_source = c(livestock[[status]][[1]]$species[[k]]),
+      species = c(livestock[[status]][[1]]$species[[k]]),
       n_animals = c(new.as_numeric(livestock[[status]][[1]]$numberOfHeads[[k]])), 
       grazing_days = c(new.as_numeric(livestock[[status]][[1]]$grazingOrPasturedDaysPerYear[[k]]))
     ))
@@ -146,7 +146,7 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
       if (is.na(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]])==TRUE){next}
       animals <- rbind(animals,data.frame(
         scenario = paste('year',year,sep=""), 
-        manure_source = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
+        species = c(livestock[[status]][[1]][[paste('year',year,sep="")]]$species[[k]]),
         n_animals = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$numberOfHeads[[k]])), 
         grazing_days = c(new.as_numeric(livestock[[status]][[1]][[paste('year',year,sep="")]]$grazingOrPasturedDaysPerYear[[k]]))
       ))
