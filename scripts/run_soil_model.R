@@ -232,18 +232,18 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
   
-  if (length(unique(is.na(parcel_Cinputs)))==1){
-    log4r::info(my_logger,'Parcels loop starting smoothly. No NA in C inputs.',sep=" ")
-  } else {
-    log4r::error(my_logger, 'CAUTION: there is NA in C inputs (before entering in calculation loops).')
-  }
+  # if (length(unique(is.na(parcel_Cinputs)))==1){
+  #   log4r::info(my_logger,'Parcels loop starting smoothly. No NA in C inputs.',sep=" ")
+  # } else {
+  #   log4r::error(my_logger, 'CAUTION: there is NA in C inputs (before entering in calculation loops).')
+  # }
   #Chossing model version
   model_version = ifelse(sum(weather_data$past_precipitation)/sum(weather_data$past_pevap)<0.65 &
                            sum(weather_data$past_precipitation)<600,"Semi-arid","Normal")
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 5#100
+  n_run = 15#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
