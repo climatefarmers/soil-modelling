@@ -185,6 +185,32 @@ get_monthly_cash_crop <- function(parcel_index = i, year_chosen){
   return(crop)
 }
 
+# UNDER CONSTRUCTION:
+detect_crop_rotations <- function(landUseSummaryOrPractices, parcel_index = i){
+  ### Get landUse data for a parcel i
+  ### Return a year where rotations starts 
+  ### and a number of years of a cycle. 0 means no rotations? 1 means no change in management
+  # Listing arablecrop years
+  list_arablecrop_years = c()
+  for (year in c(0:10)){
+    if(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$landUseType[i]=="Arablecrops"){
+      list_arablecrop_years = c(list_arablecrop_years,year)
+    }
+  }
+  # If occurence of arable crops, looking for crop rotations
+  if (length(list_arablecrop_years) > 0){
+    df_crops = data.frame(year = c(), crops = c())
+    for (year in c(0:10)){
+      year_chosen = landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]
+      df_crops = rbind(df_crops, data.frame(
+        year = year,
+        crops = unique(na.omit(get_monthly_cash_crop(i, year_chosen)))
+        ))
+    }
+  }
+}
+  
+
 get_clay_content <- function(soilAnalysis, soilMapsData){
   if (is.null(soilAnalysis$clayContentPercent)==TRUE){
     return(soilMapsData$clay)
