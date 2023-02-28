@@ -110,7 +110,8 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
         bale_grazing_yield = bale_grazing_yield + 0
       } else if (landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$baleGrazing[i]==TRUE){
         bale_grazing_yield = bale_grazing_yield + new.as_numeric(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$hayStrawApplication[i])*
-          ifelse(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing[i]=="10-15",
+          ifelse(is.na(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing[i])==TRUE | 
+                   landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing[i]=="10-15",
                  0.125,
                  new.as_numeric(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$residueLeftAfterBaleGrazing[i])/100)*
           new.as_numeric(landUseSummaryOrPractices[[1]]$area[i])/10000
@@ -302,7 +303,7 @@ get_bulk_density <- function(soilAnalysis, soilMapsData){
 get_add_manure_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts manure application inputs dataframe 
-  add_manure_inputs = data.frame(parcel_ID = c(), scenario = c(), manure_source = c(), quantity_kg_ha = c(), imported_frac = c(), remaining_frac = c())
+  add_manure_inputs = data.frame(parcel_ID = c(), scenario = c(), manure_source = c(), quantity_t_ha = c(), imported_frac = c(), remaining_frac = c())
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     for (j in c(0:10)){
       year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
@@ -312,7 +313,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
             scenario = c(paste('year',j,sep="")), 
             manure_source = c("Other Cattle"), # AN UNFOLDING LIST OF MANURE TYPE MIGHT HAVE TO BE ADDED TO UI
-            quantity_kg_ha = c(new.as_numeric(year_chosen$manureApplication[i])), 
+            quantity_t_ha = c(new.as_numeric(year_chosen$manureApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentManureImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentManureImported[i])==TRUE,0,
                                             new.as_numeric(year_chosen$percentManureImported[i])))),
@@ -325,7 +326,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
             scenario = c(paste('year',j,sep="")), 
             manure_source = c("Green compost"), # CAUTION the fact that compost entry is GREEN compost might have to be specified
-            quantity_kg_ha = c(new.as_numeric(year_chosen$compostApplication[i])), 
+            quantity_t_ha = c(new.as_numeric(year_chosen$compostApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentCompostImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentCompostImported[i])==TRUE,0,
                                             new.as_numeric(year_chosen$percentCompostImported[i])))),
@@ -338,7 +339,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
             scenario = c(paste('year',j,sep="")), 
             manure_source = c("Hay"),
-            quantity_kg_ha = c(new.as_numeric(year_chosen$hayStrawApplication[i])), 
+            quantity_t_ha = c(new.as_numeric(year_chosen$hayStrawApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentageOfHayStrawImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentageOfHayStrawImported[i])==TRUE,0,
                                             new.as_numeric(year_chosen$percentageOfHayStrawImported[i])))),
@@ -357,7 +358,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
                                mutate(scenario='baseline')) # Manure addition baseline is based on previous years
   return(add_manure_inputs)
 }
-#schema_fixed
+
 get_agroforestry_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts agroforestry inputs dataframe 
@@ -408,7 +409,7 @@ get_agroforestry_inputs = function(landUseSummaryOrPractices){
   }
   return(na.omit(agroforestry_inputs))
 }
-#schema_fixed
+
 get_animal_inputs = function(landUseSummaryOrPractices,livestock){
   # takes landUseSummaryOrPractices & livestock from farms collection
   # extracts animal inputs dataframe 
@@ -472,7 +473,7 @@ get_animal_inputs = function(landUseSummaryOrPractices,livestock){
   }
   return(animal_inputs)
 }
-#schema_fixed
+
 get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, farm_EnZ){
   # takes landUseSummaryOrPractices from farms collection
   # extracts bare soil inputs dataframe 
@@ -498,7 +499,7 @@ get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, far
   }
   return(bare_field_inputs)
 }
-#schema_fixed
+
 get_crop_inputs <- function(landUseSummaryOrPractices){
   crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), dry_yield = c(), 
                            fresh_yield = c(), dry_residue = c(), fresh_residue = c(), 
@@ -576,7 +577,7 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
   }
   return(crop_inputs)
 }
-#schema_fixed
+
 get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger){
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     if (nrow(crop_inputs)==0){ # no crops previously found
@@ -609,7 +610,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
           crop_inputs <- rbind(crop_inputs, crop_inputs_temp)
         } else {
           # if no wheat yield data is provided by the farmer
-          dry_agb_peak = (crop_data %>% filter(pedo_climatic_area==farm_EnZ))$dry_yield
+          dry_agb_peak = (crop_data %>% filter(pedo_climatic_area==farm_EnZ))$ag_dm_peak
           crop_inputs_temp <- data.frame(parcel_ID=landUseSummaryOrPractices[[1]]$parcelName[i], scenario='baseline',
                                          crop = 'Wheat', 
                                          dry_yield=mean(dry_agb_peak)*0.95, fresh_yield = 0,
@@ -622,7 +623,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
   }
   return(crop_inputs)
 }
-#schema_fixed
+
 get_fertilizer_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts fertilizer inputs dataframe 
@@ -678,7 +679,7 @@ get_fertilizer_inputs = function(landUseSummaryOrPractices){
   }
   return(fertilizer_inputs)
 }
-#schema_fixed
+
 get_fuel_inputs = function(landUseSummaryOrPractices,fuel){
   # takes landUseSummaryOrPractices & livestock from farms collection
   # extracts animal inputs dataframe 
@@ -747,7 +748,7 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
   }
     return(parcel_inputs)
 }
-#schema_fixed
+
 get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts yield and residues left on site when grazing happened
@@ -898,7 +899,7 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
   }
   return(pasture_inputs)
 }
-#schema_fixed
+
 get_soil_inputs = function(landUseSummaryOrPractices, soilAnalysis, soilMapsData){
   # takes landUseSummaryOrPractices from farms collection
   # extracts parcels input dataframe 
@@ -931,7 +932,7 @@ get_soil_inputs = function(landUseSummaryOrPractices, soilAnalysis, soilMapsData
   }
   return(soil_inputs)
 }
-#schema_fixed
+
 get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_EnZ){ 
   # takes landUseSummaryOrPractices from farms collection, farm_country (from farmInfo) and tilling factors table
   # extracts tilling inputs dataframe 
@@ -958,4 +959,3 @@ get_tilling_inputs = function(landUseSummaryOrPractices, tilling_factors, farm_E
     summarise(tilling_factor = max(tilling_factor)) # ATM JUST TAKE THE MAX IMPACT EVENT
   return(tilling_inputs)
 }
-#schema_fixed
