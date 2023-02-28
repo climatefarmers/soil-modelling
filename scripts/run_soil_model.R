@@ -1,4 +1,4 @@
-run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){ 
+run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
   
   log4r::info(my_logger, "run_soil_model.R started running")
   
@@ -59,7 +59,6 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # }
   
   farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=connection_string)
-  
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
   if (length(unique(farm_EnZ$enz))==1){
     farm_EnZ = unique(farm_EnZ$enz)
@@ -94,11 +93,11 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
-  crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger)
+  crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger, farm_EnZ)
   landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
   ## Just checking grazing yields continuity
   total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock, animal_factors)
-  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger)
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, pars$CFmade_grazing_estimations_Yes_No)
   OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
   clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
   silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
@@ -129,7 +128,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                        agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
                                        #                              scenario, parcel, lat_farmer),
                                        animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
-                                       crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
+                                       crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel, farm_EnZ),
                                        pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
     }
     scenario = baseline_chosen
@@ -141,7 +140,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
                                      agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
                                      #                               scenario, parcel, lat_farmer),
                                      animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
-                                     crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel),
+                                     crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel, farm_EnZ),
                                      pasture_Cinputs=get_monthly_Cinputs_pasture(pasture_inputs, pasture_data, scenario, parcel)))
   }
   parcel_Cinputs <- parcel_Cinputs %>% mutate(tot_Cinputs=add_manure_Cinputs+agroforestry_Cinputs+animal_Cinputs+crop_Cinputs+pasture_Cinputs)
@@ -209,7 +208,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   colnames(mean_input) = colnames_ranges
   ## Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
-  sd=data.frame(field_carbon_in=0.1,
+  sd=data.frame(field_carbon_in=pars$sd_field_carbon_in,
                 dr_ratio = 0.025,
                 temp = 0.025,
                 precip = 0.025,
@@ -243,7 +242,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 5#100
+  n_run = pars$n_run # moved out to pars argument
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -340,7 +339,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
       
       # For future, C_inputs are more uncertain: base uncertainty**1.5
       N_1 = 1 #first year of future modelling
-      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**1.5)
+      batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**pars$sd_future_mod)
       batch$field_carbon_in <- (batch_parcel_Cinputs %>% filter (scenario==paste("year",N_1,sep="") & parcel_ID==parcel))$tot_Cinputs
       batch$bare = as.factor(t(bare_field_inputs %>% filter(scenario==paste("year",N_1,sep="") & parcel_ID==parcel))[c(3:14)])
       batch$tilling_factor = (tilling_inputs %>% filter(scenario==paste("year",N_1,sep="") & parcel_ID==parcel))$tilling_factor
