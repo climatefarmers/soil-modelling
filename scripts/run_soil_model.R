@@ -20,7 +20,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
     connection_string = init_file$connection_string_prod
     farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
-    #farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
+    # connection_string = init_file$connection_string_cfdev
+    # farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
     #checking correctness and unicity
     if (is.null(farms_everything$farmInfo)==TRUE){
@@ -28,7 +29,8 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     } else if (length(farms_everything$farmInfo$farmId)>1){
       log4r::error(my_logger, paste("Multiple identical farmId were found. Number of farmId matching =",length(farms_everything$farmInfo$farmId),".",sep=""))
     } else if (farms_everything$farmInfo$farmId==farmId){
-      log4r::info(my_logger,paste("farm with farmId = ",farmId," has been read succesfully. Mail adress = ",farms_everything$farmInfo$email,'.',sep=""))
+      log4r::info(my_logger,paste("farm with farmId = ",farmId," has been read succesfully. 
+                                  \nMail adress = ",farms_everything$farmInfo$email,'.',sep=""))
     }
   }
   
@@ -47,19 +49,32 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
   
-  # To be implemented
-  # if (copy_baseline_to_future == TRUE){
-  #   for(i in c(1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][["year0"]]}
-  #   for(i in c(1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["currentManagement"]][[1]]}
-  # }
-  # if (copy_yearX_to_following_years == TRUE){
-  #   #last_year_to_duplicate = 1
-  #   for(i in c(last_year_to_duplicate+1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
-  #   for(i in c(last_year_to_duplicate+1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
-  # }
+  ## To be implemented
+  if (copy_baseline_to_future_landUse == TRUE){
+    for(i in c(1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][["year0"]]}
+    log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", 0,
+                                 "was pasted to every following years", sep=" "))
+  }
+  if (copy_baseline_to_future_livestock == TRUE){
+    for(i in c(1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["currentManagement"]][[1]]}
+    log4r::info(my_logger, paste("MODIF: LIVESTICK: Data from year", 0,
+                                 "was pasted to every following years", sep=" "))
+  }
+  if (copy_yearX_to_following_years_landUse == TRUE){
+    #last_year_to_duplicate = 1
+    for(i in c(last_year_to_duplicate+1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+    log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", last_year_to_duplicate,
+                                 "was pasted to every following years", sep=" "))
+  }
+  if (copy_yearX_to_following_years_livestock == TRUE){
+    #last_year_to_duplicate = 1
+    for(i in c(last_year_to_duplicate+1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+    log4r::info(my_logger, paste("MODIF: LIVESTOCK: Data from year", last_year_to_duplicate,
+                                 "was pasted to every following years", sep=" "))
+  }
   
+  ## Fetching pedo-climatic zone
   farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=connection_string)
-  
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
   if (length(unique(farm_EnZ$enz))==1){
     farm_EnZ = unique(farm_EnZ$enz)
@@ -243,7 +258,7 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
-  n_run = 15#100
+  n_run = 20#100
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -476,9 +491,16 @@ run_soil_model <- function(init_file, farmId = NA, JSONfile = NA){
     xlab("Time")+
     ylab("Number of certificates issuable (per year)")
   print(histogram)
-  log4r::info(my_logger,'Number of certificates issuable (total):',sum(step_in_table_final$yearly_certificates_mean),
-              '. Area considered: ', round(sum(parcel_inputs$area)),' ha. Credits per year: ',
-              list(step_in_table_final$yearly_certificates_mean), sep="")
+  log4r::info(my_logger,'Number of certificates issuable (total, before emission reductions): ',sum(step_in_table_final$yearly_certificates_mean),
+              '.\nCredits per year (before emission reductions): ', list(step_in_table_final$yearly_certificates_mean),
+              '.\nArea considered: ', round(sum(parcel_inputs$area)),' ha.', 
+              "\nNumber of runs: ",run_ID,
+              ".\nGrazing estimations by CF (Y/N): ",CFmade_grazing_estimations_Yes_No,
+              "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",sd$field_carbon_in,
+              ifelse(copy_baseline_to_future_landUse==TRUE,"\nCAUTION: Duplicated and applied 'Past/current management' data to EVERY parcels and following years from year 0.",""),
+              ifelse(copy_baseline_to_future_livestock==TRUE,"\nCAUTION: Duplicated and applied 'Current livestock' data to EVERY following years from year 0.",""),
+              ifelse(copy_yearX_to_following_years_landUse==TRUE,paste("\nCAUTION: Duplicated and applied land use from 'year",last_year_to_duplicate,"' to following years in EVERY parcels.",sep=""),""),
+              ifelse(copy_baseline_to_future_landUse==TRUE,paste("\nCAUTION: Duplicated and applied livestock from 'year",last_year_to_duplicate,"' to EVERY following years.",sep=""),""),sep="")
   write.csv(landUseType,file.path(init_file$soil_loc,"logs",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
