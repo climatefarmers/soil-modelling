@@ -578,7 +578,7 @@ get_crop_inputs <- function(landUseSummaryOrPractices){
   return(crop_inputs)
 }
 
-get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger){
+get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger, farm_EnZ){
   for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
     if (nrow(crop_inputs)==0){ # no crops previously found
       return(crop_inputs) # so no crop baselines to be created, returned empty
@@ -749,8 +749,8 @@ get_parcel_inputs = function(landUseSummaryOrPractices){
     return(parcel_inputs)
 }
 
-get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger){
-  #takes a landUseSummaryOrPractices from farms collection
+get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, CFmade_grazing_estimations_Yes_No){
+ #takes a landUseSummaryOrPractices from farms collection
   #extracts yield and residues left on site when grazing happened
   pasture_efficiency_potential_difference = unique((grazing_factors %>% filter(pedo_climatic_area==farm_EnZ))$pasture_efficiency_potential_difference)
   pasture_inputs = data.frame(scenario = c(), parcel_ID = c(), grass = c(), perennial_frac = c(), n_fixing_frac = c(), 

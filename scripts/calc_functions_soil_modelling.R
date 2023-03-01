@@ -71,7 +71,7 @@ get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_
   return(tC_inputs_per_ha_per_year)
 }
 
-get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel){
+get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel, farm_EnZ){
   if(nrow(crop_inputs)==0){
     return(0)}
   crops <- merge(x = filter(crop_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
