@@ -31,7 +31,9 @@ prep_soil_moisture_factor <- function(
   bulk_density=bulk_density,
   SOC=SOC,
   pE=pE,
-  version=version){
+  tilling_factor=1,
+  version=version
+  ){
   
   # Monthly data frame
   years <- get_monthly_dataframe(time_horizon, add_month = F)
@@ -77,8 +79,9 @@ prep_soil_moisture_factor <- function(
       pE = pE
     )$b 
   }
+
   # Moisture factors over time
-  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW * fCov, length.out = length(years)))
+  xi_frame <- data.frame(years, moisture_factor = rep(fT * fW * fCov * tilling_factor, length.out = length(years)))
   return(xi_frame)
   
 }
@@ -195,31 +198,6 @@ calc_tilling_factor <- function(
 }
 
 
-calc_tilling_impact <- function(tilling_factor = 1, 
-                                all_c){
-  
-  # Take the initial c values
-  c_init <- as_tibble(head(all_c,1))
-  
-  # calculate the difference at each time point from t = 0
-  all_c_diff <- all_c %>% 
-    mutate_if(is.numeric, funs(.-first(.)))
-  
-  all_c_diff <- all_c_diff * tilling_factor
-  
-  all_c_diff <- all_c_diff %>% 
-    mutate(DPM = DPM + c_init$DPM,
-           RPM = RPM + c_init$RPM,
-           HUM = HUM + c_init$HUM,
-           BIO = BIO + c_init$BIO,
-           IOM = IOM + c_init$IOM)
-  
-  return(all_c_diff)
-  
-}
-
-
-
 calc_carbon_over_time <- function(time_horizon = 10, 
                                   field_carbon_in = c(10,10,10,10,10,10,10,10,10,10), # annual input
                                   dr_ratios = c(1,1,1,1,1,1,1,1,1), # annual dr ratio
@@ -252,6 +230,7 @@ calc_carbon_over_time <- function(time_horizon = 10,
     bulk_density=bulk_density,
     SOC=SOC,
     pE=pE,
+    tilling_factor = tilling_factor,
     version=version)
   
   for (t in 1: time_horizon){
@@ -279,9 +258,6 @@ calc_carbon_over_time <- function(time_horizon = 10,
       all_c <- rbind(all_c, c_df)
     }
   }
-  
-  # apply tilling losses
-  all_c <- calc_tilling_impact(tilling_factor, all_c)
   
   all_c <- all_c %>% rowwise() %>% mutate(TOT = sum(DPM, RPM, BIO, HUM, IOM))
   
