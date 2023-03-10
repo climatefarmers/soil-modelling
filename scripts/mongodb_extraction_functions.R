@@ -665,8 +665,8 @@ get_fertilizer_inputs = function(landUseSummaryOrPractices){
         scenario = c(paste('year',j,sep="")),
         usage_boolean = year_chosen$syntheticFertilizer$usage[i],
         fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
-        quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
-        n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+        quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear[i]),0),
+        n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen[i]),0)))
       if (j==0){
         fertilizer_inputs <- rbind(fertilizer_inputs,data.frame(
           parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
@@ -679,16 +679,16 @@ get_fertilizer_inputs = function(landUseSummaryOrPractices){
           scenario = c("baseline"),
           usage_boolean = year_chosen$syntheticFertilizer$usage[i],
           fertilizer_type = "synthetic", # here gathering data from the synthetic fertilizer dashboard entry
-          quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear),0),
-          n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen),0)))
+          quantity_t_ha = ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$tonsPerYear[i]),0),
+          n_content_perc=ifelse(year_chosen$syntheticFertilizer$usage[i]==TRUE, new.as_numeric(year_chosen$syntheticFertilizer$percentOfNitrogen[i]),0)))
       }
       last_index = nrow(fertilizer_inputs)
       if (fertilizer_inputs$usage_boolean[last_index]==TRUE){
-        if (quantity_t_ha==0){
+        if (fertilizer_inputs$quantity_t_ha[last_index]==0){
           list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
                                                         ' (year',j,"): quantity_t_ha missing", sep=""))
         }
-        if (n_content_perc==0){
+        if (fertilizer_inputs$n_content_perc[last_index]==0){
           list_missing_data = c(list_missing_data,paste(fertilizer_inputs$parcel_ID[last_index],
                                                         ' (year',j,"): n_content_perc missing", sep=""))
         }
@@ -701,9 +701,8 @@ get_fertilizer_inputs = function(landUseSummaryOrPractices){
   return(fertilizer_inputs)
 }
 
-get_fuel_inputs = function(landUseSummaryOrPractices,fuel){
-  # takes landUseSummaryOrPractices & livestock from farms collection
-  # extracts animal inputs dataframe 
+get_fuel_inputs = function(fuel){
+  # extracts fuel inputs dataframe 
   fuel_inputs = data.frame(scenario = c(), typeOfFuel = c(), amountInLiters = c())
   status ="currentFuelUsage"
   for (k in c(1:nrow(fuel[[status]][[1]]))){
