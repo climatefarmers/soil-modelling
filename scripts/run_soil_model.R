@@ -74,7 +74,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   }
   
   ## Fetching pedo-climatic zone
-  farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=connection_string)
+  farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=init_file$connection_string_prod)
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
   if (length(unique(farm_EnZ$enz))==1){
     farm_EnZ = unique(farm_EnZ$enz)
@@ -103,17 +103,17 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
+  ## Just checking grazing yields continuity
+  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock, animal_factors, parcel_inputs)
   #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
-  animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock)
+  animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock, parcel_inputs)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
-  crop_inputs = get_crop_inputs(landUseSummaryOrPractices)
+  crop_inputs = get_crop_inputs(landUseSummaryOrPractices, pars)
   crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger, farm_EnZ)
   landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
-  ## Just checking grazing yields continuity
-  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock, animal_factors)
-  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, pars$CFmade_grazing_estimations_Yes_No)
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, pars)
   OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
   clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
   silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
@@ -493,9 +493,9 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   print(histogram)
   log4r::info(my_logger,'Number of certificates issuable (total, before emission reductions): ',sum(step_in_table_final$yearly_certificates_mean),
               '.\nCredits per year (before emission reductions): ', list(step_in_table_final$yearly_certificates_mean),
-              '.\nArea considered: ', round(sum(parcel_inputs$area)),' ha.', 
+              '.\nArea considered: ', round(sum(parcel_inputs$area),2),' ha.', 
               "\nNumber of runs: ",run_ID,
-              ".\nGrazing estimations by CF (Y/N): ",CFmade_grazing_estimations_Yes_No,
+              ".\nGrazing estimations by CF (Y/N): ",pars$CFmade_grazing_estimations_Yes_No,
               "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",sd$field_carbon_in,
               ifelse(copy_baseline_to_future_landUse==TRUE,"\nCAUTION: Duplicated and applied 'Past/current management' data to EVERY parcels and following years from year 0.",""),
               ifelse(copy_baseline_to_future_livestock==TRUE,"\nCAUTION: Duplicated and applied 'Current livestock' data to EVERY following years from year 0.",""),
