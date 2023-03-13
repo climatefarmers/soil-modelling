@@ -303,9 +303,7 @@ get_bulk_density <- function(soilAnalysis, soilMapsData){
   }
 }
 
-
 ### GET INPUT FUNCTIONS
-
 get_add_manure_inputs = function(landUseSummaryOrPractices){
   # takes landUseSummaryOrPractices from farms collection
   # extracts manure application inputs dataframe 
@@ -508,7 +506,8 @@ get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, far
 
 get_crop_inputs <- function(landUseSummaryOrPractices, pars){
   crop_inputs = data.frame(scenario = c(), parcel_ID = c(), crop = c(), dry_yield = c(), 
-                           fresh_yield = c(), dry_residue = c(), fresh_residue = c(), 
+                           fresh_yield = c(), dry_grazing_yield = c(), fresh_grazing_yield = c(),
+                           dry_residue = c(), fresh_residue = c(), 
                            dry_agb_peak = c(), fresh_agb_peak = c() )
   for (j in c(0:10)){ #years
     year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
@@ -564,6 +563,8 @@ get_crop_inputs <- function(landUseSummaryOrPractices, pars){
                                             crop = crop_chosen,
                                             dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
                                             fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
+                                            dry_grazing_yield = c(ifelse(dryOrFresh=="Dry", grazing_yield,0)), 
+                                            fresh_grazing_yield = c(ifelse(dryOrFresh=="Fresh", grazing_yield,0)), 
                                             dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left+grazing_yield*0.15,0)), 
                                             fresh_residue = c(ifelse(dryOrFresh=="Fresh", residue_left+grazing_yield*0.15,0)), 
                                             dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max((monthly_harvesting_yield %>% filter(crop==crop_chosen))$harvesting_yield+
@@ -583,6 +584,8 @@ get_crop_inputs <- function(landUseSummaryOrPractices, pars){
                                             crop = "Non-N-fixing dry forages",# SHOULD WE DIFFERENTIATE PRODUCTIVE FALLOW AND COVER CROPS ?
                                             dry_yield = c(ifelse(dryOrFresh=="Dry", harvesting_yield,0)), 
                                             fresh_yield = c(ifelse(dryOrFresh=="Fresh", harvesting_yield,0)), 
+                                            dry_grazing_yield = c(ifelse(dryOrFresh=="Dry", grazing_yield,0)), 
+                                            fresh_grazing_yield = c(ifelse(dryOrFresh=="Fresh", grazing_yield,0)), 
                                             dry_residue = c(ifelse(dryOrFresh=="Dry", residue_left+grazing_yield*0.15,0)), 
                                             fresh_residue = c(ifelse(dryOrFresh=="Fresh", residue_left+grazing_yield*0.15,0)), 
                                             dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max((monthly_harvesting_yield %>% filter(is.na(crop)==TRUE))$harvesting_yield+
@@ -604,13 +607,15 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
     if (nrow(crop_inputs)==0){ # no crops previously found
       return(crop_inputs) # so no crop baselines to be created, returned empty
     }
-    if(landUseSummaryOrPractices[[1]][['year0']]$landUseType[i]=="Agroforestry" |
-       landUseSummaryOrPractices[[1]][['year0']]$landUseType[i]=="Forestry" ){
-      # We assume that for the above land uses soil cover management baseline is the current state
-      crop_inputs <- rbind(crop_inputs,crop_inputs%>%
-                             filter(parcel_ID==landUseSummaryOrPractices[[1]]$parcelName[i], scenario=='year0')%>%
-                             mutate(scenario='baseline')) # arable crop baseline is based on previous years
-    }
+    #ONLY ARABLECROPS LANDUSE TYPE IS CURRENTLY CONSIDERED IN get_crop_inputs
+    #SHOULD BE REFINED IN CASE OF CASH CROPS UNDER AGROFORESTRY
+    # if(landUseSummaryOrPractices[[1]][['year0']]$landUseType[i]=="Agroforestry" |
+    #    landUseSummaryOrPractices[[1]][['year0']]$landUseType[i]=="Forestry" ){
+    #   # We assume that for the above land uses soil cover management baseline is the current state
+    #   crop_inputs <- rbind(crop_inputs,crop_inputs%>%
+    #                          filter(parcel_ID==landUseSummaryOrPractices[[1]]$parcelName[i], scenario=='year0')%>%
+    #                          mutate(scenario='baseline')) # arable crop baseline is based on previous years
+    # }
     if(landUseSummaryOrPractices[[1]][['year0']]$landUseType[i]=="Arablecrops"){
       # AT THE MOMENT PERMANENT COVER CROPS ARE ALSO ASSOCIATED TO CEREAL-BASELINE
       if(landUseSummaryOrPractices[[1]]$year0$applyingThesePracticesInYears[i]==""){
@@ -626,6 +631,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
             summarize(parcel_ID=landUseSummaryOrPractices[[1]]$parcelName[i], scenario='baseline',
                       crop = 'Wheat', 
                       dry_yield=mean(dry_agb_peak)*0.95, fresh_yield = mean(fresh_agb_peak)*0.95,
+                      dry_grazing_yield=0, fresh_grazing_yield=0,
                       dry_residue=mean(dry_agb_peak)*0.05, fresh_residue=mean(fresh_agb_peak)*0.05, #assumption that only 5% of aboveground biomass  is left-on-site
                       dry_agb_peak=mean(dry_agb_peak), fresh_agb_peak=mean(fresh_agb_peak))
           crop_inputs <- rbind(crop_inputs, crop_inputs_temp)
@@ -635,6 +641,7 @@ get_baseline_crop_inputs <- function(landUseSummaryOrPractices, crop_inputs, cro
           crop_inputs_temp <- data.frame(parcel_ID=landUseSummaryOrPractices[[1]]$parcelName[i], scenario='baseline',
                                          crop = 'Wheat', 
                                          dry_yield=mean(dry_agb_peak)*0.95, fresh_yield = 0,
+                                         dry_grazing_yield=0, fresh_grazing_yield=0,
                                          dry_residue=mean(dry_agb_peak)*0.05, fresh_residue=0, #assumption that only 5% of aboveground biomass is left-on-site
                                          dry_agb_peak=mean(dry_agb_peak), fresh_agb_peak=0)
           crop_inputs <- rbind(crop_inputs, crop_inputs_temp)
