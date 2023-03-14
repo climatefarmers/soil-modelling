@@ -415,17 +415,14 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                                               scenario=c(rep("baseline",132),rep("holistic",132)),
                                                               farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
     }
-    farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time,scenario,SOC_farm)))
-    step_in_results <- unique(farm_results_batch %>% 
-                                mutate(year =format(time, format="%Y")) %>% 
-                                group_by(scenario, year) %>% 
-                                mutate(yearly_mean=mean(SOC_farm)) %>%
-                                select(scenario, year, yearly_mean))
-    temp_baseline <- step_in_results %>% filter(scenario=="baseline")
-    year_temp <- temp_baseline$year[c(2:length(temp_baseline$year))]
-    step_baseline <- diff(temp_baseline$yearly_mean)
-    temp_holistic <- step_in_results %>% filter(scenario=="holistic")
-    step_holistic <- diff(temp_holistic$yearly_mean)
+    browser()
+    farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time, scenario, SOC_farm)))
+    months <- format(farm_results_batch$time, format="%m")
+    step_in_results <- farm_results_batch[months==12,]  # SOC content at end of year (December, month 12) is selected.
+    step_in_results <- step_in_results[2:11,]  # Removing the first year here. Can eventually just remove that run completely.
+    step_baseline <- step_in_results %>% filter(scenario=="baseline") %>% select(SOC_farm)
+    step_holistic <- step_in_results %>% filter(scenario=="holistic") %>% select(SOC_farm)
+    year_temp <- temp_baseline$year[1:length(temp_baseline$year)]
     step_in_table <- rbind(step_in_table,(data.frame(run=run_ID,
                                                      year=year_temp,
                                                      baseline_step_SOC_per_hectare=step_baseline,
