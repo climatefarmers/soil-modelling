@@ -3,7 +3,7 @@
 
 #Functions for extracting LB2 Data from soil model results
 #Project activity: Residue management
-get_residues_per_year <- function(pasture_inputs,crop_inputs, parcel_inputs) {
+get_residue_management_data <- function(pasture_inputs,crop_inputs, parcel_inputs) {
   
   # Needs to be adapted depending on considering dry or fresh residues
   grass_residues = pasture_inputs$dry_residual
@@ -20,8 +20,10 @@ get_residues_per_year <- function(pasture_inputs,crop_inputs, parcel_inputs) {
   
 }
 
+residues = get_residue_management_data(pasture_inputs,crop_inputs, parcel_inputs)
+
 #Project activity: Add manures
-get_add_manures_per_year <- function(add_manure_inputs, parcel_inputs) {
+get_manure_data <- function(add_manure_inputs, parcel_inputs) {
   
   # Needs to be adapted depending on considering dry or fresh residues
   total_add_manure_table <- left_join(add_manure_inputs, parcel_inputs, by = "parcel_ID")
