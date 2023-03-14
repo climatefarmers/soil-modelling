@@ -186,11 +186,16 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
   
-  
   ################# Weather data pulling
-  weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
+  if(exists("debug_mode")) {
+    if(debug_mode){  # will skip fetching climate data and use dummy data if debug_mode is set
+      weather_data <- read_csv("test_weather_data.csv") # For testing only
+    } else {
+      weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
+                         get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
+                         get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
+    }
+  }
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   # Calculating the average soil parameters among parcels
