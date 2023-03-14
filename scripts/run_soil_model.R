@@ -134,6 +134,9 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                              animal_Cinput=c(),
                              crop_Cinputs=c(),
                              pasture_Cinputs=c())
+  
+  # load("parcel_Cinputs.RData")  # for testing only
+  
   for(parcel in unique(parcel_inputs$parcel_ID)){
     for(i in c(0:10)){
       scenario = paste("year",i,sep="")
@@ -141,7 +144,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                             data.frame(parcel_ID=parcel,
                                        scenario=scenario,
                                        add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
-                                       agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                       agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors,
                                        #                              scenario, parcel, lat_farmer),
                                        animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                        crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel, farm_EnZ),
@@ -153,7 +156,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                      scenario=scenario,
                                      add_manure_Cinputs=get_monthly_Cinputs_add_manure(add_manure_inputs, manure_factors, scenario, parcel),
                                      # TREES NOT COUNTED BEFORE GOOD CHECK OF DATA QUALITY
-                                     agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors, 
+                                     agroforestry_Cinputs=0,#get_monthly_Cinputs_agroforestry(agroforestry_inputs, agroforestry_factors,
                                      #                               scenario, parcel, lat_farmer),
                                      animal_Cinputs=get_monthly_Cinputs_animals(animal_inputs, animal_factors, scenario, parcel),
                                      crop_Cinputs=get_monthly_Cinputs_crop(crop_inputs, crop_data, scenario, parcel, farm_EnZ),
@@ -164,10 +167,10 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     log4r::info(my_logger,'parcel C inputs calculations have no NAs.',sep=" ")
   } else {
     log4r::error(my_logger, paste(length(apply(is.na(parcel_Cinputs), 2, which)),'NAs were found in parcel C inputs calculation results.'))
-  }     
+  }
   #write.csv(parcel_Cinputs,file.path(project_loc,project_name,"results/parcel_Cinputs.csv"), row.names = TRUE)
   ################# Calculations of additional C inputs compared to baseline per parcel and scenario
-  
+
   parcel_Cinputs_addition = merge(x= parcel_Cinputs, 
                                   y= parcel_inputs %>% 
                                     select(parcel_ID,area) %>%
@@ -186,11 +189,16 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
   
-  
   ################# Weather data pulling
-  weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
-                     get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
+  if(exists("debug_mode")) {
+    if(debug_mode){  # will skip fetching climate data and use dummy data if debug_mode is set
+      weather_data <- read_csv("test_weather_data.csv") # For testing only
+    } else {
+      weather_data=cbind(get_past_weather_data(init_file, lat_farmer, lon_farmer),
+                         get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp4.5"),
+                         get_future_weather_data(init_file, lat_farmer, lon_farmer, scenario="rcp8.5"))
+    }
+  }
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
   # Calculating the average soil parameters among parcels
@@ -410,17 +418,15 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                                               scenario=c(rep("baseline",132),rep("holistic",132)),
                                                               farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
     }
-    farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time,scenario,SOC_farm)))
-    step_in_results <- unique(farm_results_batch %>% 
-                                mutate(year =format(time, format="%Y")) %>% 
-                                group_by(scenario, year) %>% 
-                                mutate(yearly_mean=mean(SOC_farm)) %>%
-                                select(scenario, year, yearly_mean))
-    temp_baseline <- step_in_results %>% filter(scenario=="baseline")
-    year_temp <- temp_baseline$year[c(2:length(temp_baseline$year))]
-    step_baseline <- diff(temp_baseline$yearly_mean)
-    temp_holistic <- step_in_results %>% filter(scenario=="holistic")
-    step_holistic <- diff(temp_holistic$yearly_mean)
+
+    farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time, scenario, SOC_farm)))
+    months <- format(farm_results_batch$time, format="%m")
+    step_in_results <- farm_results_batch[months==12,]  # SOC content at end of year (December, month 12) is selected.
+    step_in_results <- step_in_results %>% mutate(year = format(time, format="%Y"))
+    step_baseline <- diff(step_in_results$SOC_farm[step_in_results$scenario=="baseline"])
+    step_holistic <- diff(step_in_results$SOC_farm[step_in_results$scenario=="holistic"])
+    year_temp <- step_in_results$year[step_in_results$scenario=="holistic"][2:11]
+    
     step_in_table <- rbind(step_in_table,(data.frame(run=run_ID,
                                                      year=year_temp,
                                                      baseline_step_SOC_per_hectare=step_baseline,
@@ -431,6 +437,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     all_results <- rbind(all_results_batch,all_results)
     farm_results <- rbind(farm_results_batch,farm_results)
     print(paste(paste(paste(paste("Run ",n),"over"),n_run),"done"))
+    
   }
   step_in_table_final <- step_in_table %>% group_by(year) %>% 
     summarise(yearly_certificates_average=mean(yearly_certificates),

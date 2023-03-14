@@ -8,13 +8,15 @@ rm(list=ls())
 library(tidyverse)
 library(jsonlite)
 
-test_var = "ahah"
+debug_mode = FALSE  # Skip some steps. For now just skip fetching and       use dummy climate data.
 
 source("carbonplus_trigger_Rscript.R")
 
 sensitive_data_loc <- "../sensitive-data"
 
 farmIds <- read_csv(file.path(sensitive_data_loc,"farmIds.csv"), show_col_types = FALSE)
+
+# farmId <- farmIds$farmId[farmIds$farmer_name == "Joao Rodrigues"]
 farmId <- farmIds$farmId[farmIds$farmer_name == "Manuel Die"]
 
 init_file <- fromJSON(file.path(sensitive_data_loc,"init_file.json"))
