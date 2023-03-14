@@ -47,6 +47,7 @@ vignettes/*.pdf
 __pycache__/
 #logs
 *.log
+*logs
 # files containing sensitive data
 carbonplus_trigger_Rscript.R
 init_file.json
