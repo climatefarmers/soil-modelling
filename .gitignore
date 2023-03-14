@@ -49,6 +49,5 @@ __pycache__/
 *.log
 *logs
 # files containing sensitive data
-carbonplus_trigger_Rscript.R
 init_file.json
 init_file_docker.json

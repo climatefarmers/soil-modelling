@@ -1,5 +1,5 @@
 run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
-  
+
   log4r::info(my_logger, "run_soil_model.R started running")
   
   soil_loc <-init_file$soil_loc
@@ -34,12 +34,12 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     }
   }
   
-  source(file.path(soil_loc, "model_semiArid_functions.R"))
-  source(file.path(soil_loc, "modified_semiArid_functions.R"))
-  source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"))
-  source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"))
-  #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"))
-  source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"))
+  source(file.path(soil_loc, "model_semiArid_functions.R"), local = TRUE)
+  source(file.path(soil_loc, "modified_semiArid_functions.R"), local = TRUE)
+  source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"), local = TRUE)
+  source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"), local = TRUE)
+  #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"), local = TRUE)
+  source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"), local = TRUE)
   
   if (length(farms_everything$farmInfo$farmId)>1){
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""), limit = 1)
