@@ -6,8 +6,8 @@ get_monthly_Cinputs_add_manure <- function (add_manure_inputs, manure_factors, s
     return(0)}
   add_manure_inputs = filter(add_manure_inputs,scenario==scenario_chosen & parcel_ID==parcel)
   add_manure = merge(x = add_manure_inputs, y = manure_factors, by = "manure_source", all.x = TRUE) %>% 
-    mutate (tC_inputs_add_manure= quantity_kg_ha*remaining_frac*carbon_content)
-  tC_inputs_add_manure = sum(add_manure$tC_inputs_add_manure)*1e-3
+    mutate (tC_inputs_add_manure= quantity_t_ha*remaining_frac*carbon_content)
+  tC_inputs_add_manure = sum(add_manure$tC_inputs_add_manure)
   return(tC_inputs_add_manure)
 }
 
@@ -15,7 +15,7 @@ get_monthly_Cinputs_add_manure <- function (add_manure_inputs, manure_factors, s
 get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario_chosen, parcel){
   if(nrow(animal_inputs)==0){
     return(0)}
-  animal_inputs = filter(animal_inputs,scenario==scenario_chosen & parcel_ID==parcel)
+  animal_inputs = filter(animal_inputs,scenario==scenario_chosen & parcel_ID==parcel & n_animals>0)
   animals = merge(x = animal_inputs, y = animal_factors, by = "species", all.x = TRUE) %>% 
     mutate (C_inputs_manure_kg_per_ha_per_year= n_animals*c_kg_per_year_per_animal/area*grazing_days/365)
   tC_inputs_per_ha_per_year = sum(animals$C_inputs_manure_kg_per_ha_per_year)*1e-3
@@ -71,7 +71,7 @@ get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_
   return(tC_inputs_per_ha_per_year)
 }
 
-get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel){
+get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel, farm_EnZ){
   if(nrow(crop_inputs)==0){
     return(0)}
   crops <- merge(x = filter(crop_inputs,scenario==scenario_chosen & parcel_ID==parcel), 
