@@ -528,7 +528,7 @@ get_crop_inputs <- function(landUseSummaryOrPractices, pars){
         monthly_harvesting_yield$harvesting_yield = new.as_numeric(year_chosen$harvestYield[[i]])
         monthly_harvesting_yield$residue_left = new.as_numeric(year_chosen$estimationAfterResidueGrazingHarvest[[i]])
         # if willing to correct total grazing yield by using a CF-made estimation, we re-weight the grazing yields
-        if (CFmade_grazing_estimations_Yes_No == "Yes"){
+        if (pars$CFmade_grazing_estimations_Yes_No == "Yes"){
           grazing_table_temp = total_grazing_table %>% filter(scenario==paste('year',j,sep=""))
           if (total_grazing_table$bale_grazing_total>total_grazing_table$expected_grazing_needs_tDM){
             log4r::error(my_logger,"CAUTION ! Bale grazing alone overcomes expected grazing needs, to be checked.")
@@ -829,7 +829,7 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
           monthly_grazing_yield$residue_left[k] = new.as_numeric(year_chosen$estimationAfterResidueGrazingHarvest[i][[1]][[k]])
         }
         # if willing to correct total grazing yield by using a CF-made estimation, we re-weight the grazing yields
-        if (CFmade_grazing_estimations_Yes_No == "Yes"){
+        if (pars$CFmade_grazing_estimations_Yes_No == "Yes"){
           grazing_table_temp = total_grazing_table %>% filter(scenario==paste('year',j,sep=""))
           if (total_grazing_table$bale_grazing_total>total_grazing_table$expected_grazing_needs_tDM){
             log4r::error(my_logger,"CAUTION ! Bale grazing alone overcomes expected grazing needs, to be checked.")
