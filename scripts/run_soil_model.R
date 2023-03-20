@@ -188,7 +188,17 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     select(parcel_ID, farm_frac, additional_Cinput_per_ha, relative_increase, additional_Cinput_total, absolute_contribution_perc)
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
-  
+  yearly_Cinputs_farm = merge(x= parcel_Cinputs, 
+                              y= parcel_inputs,
+                              by="parcel_ID") %>%
+                        group_by(scenario) %>%
+                        summarise(tot_Cinputs=sum(tot_Cinputs*area),
+                                  add_manure_Cinputs=sum(area*add_manure_Cinputs),
+                                  animal_Cinputs=sum(area*animal_Cinputs),
+                                  crop_Cinputs=sum(area*crop_Cinputs),
+                                  pasture_Cinputs=sum(area*pasture_Cinputs),
+                                  agroforestry_Cinputs=sum(area*agroforestry_Cinputs))
+    
   ################# Weather data pulling
   if(exists("debug_mode")) {
     if(debug_mode){  # will skip fetching climate data and use dummy data if debug_mode is set
