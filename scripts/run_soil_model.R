@@ -512,7 +512,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
               '.\nCredits per year (before emission reductions): ', list(step_in_table_final$yearly_certificates_mean),
               '.\nArea considered: ', round(sum(parcel_inputs$area),2),' ha.', 
               "\nNumber of runs: ",run_ID,
-              ".\nGrazing estimations by CF (Y/N): ", CFmade_grazing_estimations_Yes_No,
+              ".\nGrazing estimations by CF (Y/N): ", pars$CFmade_grazing_estimations_Yes_No,
               "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",sd$field_carbon_in,
               ifelse(copy_baseline_to_future_landUse==TRUE,"\nCAUTION: Duplicated and applied 'Past/current management' data to EVERY parcels and following years from year 0.",""),
               ifelse(copy_baseline_to_future_livestock==TRUE,"\nCAUTION: Duplicated and applied 'Current livestock' data to EVERY following years from year 0.",""),

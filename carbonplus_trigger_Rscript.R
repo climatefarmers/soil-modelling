@@ -16,9 +16,9 @@ launching_Rscripts <- function(init_file, farmId){
   pars = list(
     n_run = 2,
     sd_future_mod=1,
-    sd_field_carbon_in=0.05
+    sd_field_carbon_in=0.05,
+    CFmade_grazing_estimations_Yes_No="Yes"
     )
-  CFmade_grazing_estimations_Yes_No <- "No"
   copy_baseline_to_future_landUse <- FALSE
   copy_baseline_to_future_livestock <- FALSE
   copy_yearX_to_following_years_landUse <- FALSE
@@ -33,6 +33,7 @@ launching_Rscripts <- function(init_file, farmId){
                              appenders= list(my_console_appender,my_file_appender))
   log4r::info(my_logger, paste("farmId = ",farmId,sep=""))
   
+  init_file=fromJSON("../sensitive-data/init_file.json")
   soilModelling_RepositoryPath <- init_file$soil_loc
   CO2emissions_RepositoryPath <- init_file$co2_emissions_loc
   source(file.path(soilModelling_RepositoryPath,"scripts","run_soil_model.R"), local = TRUE)
