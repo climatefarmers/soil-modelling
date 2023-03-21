@@ -2,6 +2,7 @@
 
 
 #Functions for extracting LB2 Data from soil model results
+
 #Project activity: Residue management
 get_residue_management_data <- function(pasture_inputs,crop_inputs, parcel_inputs) {
   
@@ -50,7 +51,10 @@ get_cc_data <- function(crop_inputs, parcel_inputs) {
   total_cc_input <- total_cc_input %>% filter(crop == "Non-N-fixing dry forages") %>% mutate(cc_parcel = dry_yield*area) %>% group_by(scenario) %>% summarise(total_cc = sum(cc_parcel))
 }
 
+
+# Function to get mean cover crops yields for a list of farmIds
 get_cc_yield_list <- function(farmId_list){
+  
   cc_yield_list = c()
   connection_string = init_file$connection_string_prod
   farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
