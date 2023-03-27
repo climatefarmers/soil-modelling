@@ -1,39 +1,50 @@
 run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
 
+  ## Log starting run message
   log4r::info(my_logger, "run_soil_model.R started running")
   
+  ## Define paths
   soil_loc <-init_file$soil_loc
   modelling_data_loc <- init_file$modelling_data_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
+  
+  ## Set environmental variables for AWS 
   Sys.setenv(
     "AWS_ACCESS_KEY_ID" = init_file$AWS_ACCESS_KEY_ID,
     "AWS_SECRET_ACCESS_KEY" = init_file$AWS_SECRET_ACCESS_KEY,
     "AWS_DEFAULT_REGION" = init_file$AWS_DEFAULT_REGION
   )
-  if(is.na(farmId)==TRUE){
-    if(is.na(JSONfile)==TRUE){stop("No farmId neither JSON files were feed to the model")}
+  
+  ## Check that only one source of farm data was provided
+  if(!is.na(farmId) & !is.na(JSONfile)){
+    stop("Both farmId AND JSON files were fed to the model. Please choose only one.")
+  }
+  
+  ## Check if JSONfile or farmId exists and read the farm data from the JSON file or MongoDB, respectively
+  if(is.na(JSONfile)){
     JSONfile_entered = TRUE
     farms_everything = fromJSON(JSONfile)
-  }
-  
-  if(is.na(farmId)==FALSE){
-    if(is.na(JSONfile)==FALSE){stop("farmId AND JSON files were feed to the model. Please choose only one.")}
-    connection_string = init_file$connection_string_prod
-    farms_collection = mongo(collection="farms", db="carbonplus_production_db", url=connection_string)
-    # connection_string = init_file$connection_string_cfdev
-    # farms_collection = mongo(collection="farms", db="carbonplusdb", url=connection_string)
+  } else if(!is.na(farmId)) {
+    connection_string = init_file$connection_string_prod  # Other options: init_file$connection_string_cfdev
+    farms_collection = mongo(collection="farms", db="carbonplus_production_db", # Other options: db="carbonplusdb"
+                             url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
-    #checking correctness and unicity
-    if (is.null(farms_everything$farmInfo)==TRUE){
-      log4r::error(my_logger, "farmId wasn't found.")
-    } else if (length(farms_everything$farmInfo$farmId)>1){
-      log4r::error(my_logger, paste("Multiple identical farmId were found. Number of farmId matching =",length(farms_everything$farmInfo$farmId),".",sep=""))
-    } else if (farms_everything$farmInfo$farmId==farmId){
-      log4r::info(my_logger,paste("farm with farmId = ",farmId," has been read succesfully. 
-                                  \nMail adress = ",farms_everything$farmInfo$email,'.',sep=""))
-    }
-  }
+  } else {stop("Neither farmId nor a JSON file were fed to the model.")}
   
+  ## Checking correctness and unicity
+  if (is.null(farms_everything$farmInfo)){ # Can this be TRUE? Because already used above to select the data. Move to above?
+    log4r::error(my_logger, "farmId wasn't found.")
+  } else if (length(farms_everything$farmInfo$farmId)>1){
+    log4r::error(my_logger, 
+                 paste("Multiple identical farmIds were found. Number of farmIds matching =",
+                       length(farms_everything$farmInfo$farmId),".",sep="")
+                 )
+  } else if (farms_everything$farmInfo$farmId==farmId){
+    log4r::info(my_logger, paste("farm with farmId = ",farmId," has been read succesfully. 
+                                  \nMail adress = ",farms_everything$farmInfo$email,'.',sep=""))
+  }
+
+  ## Sourcing files
   source(file.path(soil_loc, "model_semiArid_functions.R"), local = TRUE)
   source(file.path(soil_loc, "modified_semiArid_functions.R"), local = TRUE)
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"), local = TRUE)
@@ -41,40 +52,58 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"), local = TRUE)
   source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"), local = TRUE)
   
+  ## Selecting only the first case if more than one farmId match in mongoDB
   if (length(farms_everything$farmInfo$farmId)>1){
-    farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""), limit = 1)
-    log4r::info(my_logger,paste("After multiple matches, only the first profile with farmId = ",farmId," was selected.",sep=""))
-  } 
+    farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""),
+                                             limit = 1)
+    log4r::info(my_logger,paste("After multiple matches, only the first profile with farmId = ",
+                                farmId," was selected.",sep=""))
+  }
+  
+  ## Extracting livestock, landUseSummaryOrPractices and soilAnalysis from the farms_everything variable
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
   
-  ## To be implemented
+  ## Copying data from baseline to future depending on settings chosen 
   if (copy_baseline_to_future_landUse == TRUE){
-    for(i in c(1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][["year0"]]}
+    for(i in c(1:10)){
+      landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]] = 
+        landUseSummaryOrPractices[[1]][["year0"]]
+      }
     log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", 0,
                                  "was pasted to every following years", sep=" "))
   }
   if (copy_baseline_to_future_livestock == TRUE){
-    for(i in c(1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["currentManagement"]][[1]]}
+    for(i in c(1:10)){
+      livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]] = 
+      livestock[["currentManagement"]][[1]]
+      }
     log4r::info(my_logger, paste("MODIF: LIVESTICK: Data from year", 0,
                                  "was pasted to every following years", sep=" "))
   }
   if (copy_yearX_to_following_years_landUse == TRUE){
-    #last_year_to_duplicate = 1
-    for(i in c(last_year_to_duplicate+1:10)){landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]]=landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+    # last_year_to_duplicate = 1
+    for(i in c(last_year_to_duplicate+1:10)){
+      landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]] = 
+        landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
     log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", last_year_to_duplicate,
                                  "was pasted to every following years", sep=" "))
   }
   if (copy_yearX_to_following_years_livestock == TRUE){
-    #last_year_to_duplicate = 1
-    for(i in c(last_year_to_duplicate+1:10)){livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]]=livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
+    # last_year_to_duplicate = 1
+    for(i in c(last_year_to_duplicate+1:10)){
+      livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]] =
+        livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
     log4r::info(my_logger, paste("MODIF: LIVESTOCK: Data from year", last_year_to_duplicate,
                                  "was pasted to every following years", sep=" "))
   }
   
   ## Fetching pedo-climatic zone
-  farm_parameters = mongo(collection="farmparameters", db="carbonplus_production_db", url=init_file$connection_string_prod)
+  farm_parameters = mongo(collection="farmparameters", 
+                          db="carbonplus_production_db", 
+                          url=init_file$connection_string_prod
+                          )
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
   if (length(unique(farm_EnZ$enz))==1){
     farm_EnZ = unique(farm_EnZ$enz)
@@ -85,7 +114,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     log4r::error(my_logger, paste("Caution: farmparameters collection content SEVERAL EnZ for farmId", farmId,"leading to conflicts", sep=" "))
   }
   
-  ################# Pulling calculation factors
+  ## Pulling calculation factors
   animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
     rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
@@ -98,8 +127,8 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
   soilMapsData=data.frame(SOC=c(1), clay=c(25), silt =c(30), bulk_density=c(1.2)) # to be pulled and processed from S3 bucket
-  ################# Pulling inputs
   
+  ################# Pulling inputs
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
