@@ -16,8 +16,8 @@ sensitive_data_loc <- "../sensitive-data"
 
 farmIds <- read_csv(file.path(sensitive_data_loc,"farmIds.csv"), show_col_types = FALSE)
 
-# farmId <- farmIds$farmId[farmIds$farmer_name == "Joao Rodrigues"]
-farmId <- farmIds$farmId[farmIds$farmer_name == "Manuel Die"]
+# farmId <- farmIds$farmId[1]
+farmId <- farmIds$farmId[1]
 
 init_file <- fromJSON(file.path(sensitive_data_loc,"init_file.json"))
 
