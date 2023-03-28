@@ -1,5 +1,5 @@
 run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
-
+  # browser()  # for debugging
   ## Log starting run message
   log4r::info(my_logger, "run_soil_model.R started running")
   
@@ -31,20 +31,20 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
   } else {stop("Neither farmId nor a JSON file were fed to the model.")}
   
-  ## Checking correctness and unicity
+  ## Checking correctness and unicity of farmIds
   if (is.null(farms_everything$farmInfo)){ # Can this be TRUE? Because already used above to select the data. Move to above?
     log4r::error(my_logger, "farmId wasn't found.")
   } else if (length(farms_everything$farmInfo$farmId)>1){
     log4r::error(my_logger, 
                  paste("Multiple identical farmIds were found. Number of farmIds matching =",
-                       length(farms_everything$farmInfo$farmId),".",sep="")
+                       length(farms_everything$farmInfo$farmId),".", sep="")
                  )
   } else if (farms_everything$farmInfo$farmId==farmId){
     log4r::info(my_logger, paste("farm with farmId = ",farmId," has been read succesfully. 
-                                  \nMail adress = ",farms_everything$farmInfo$email,'.',sep=""))
+                                  \nMail adress = ",farms_everything$farmInfo$email,'.', sep=""))
   }
 
-  ## Sourcing files
+  ## Sourcing code from files
   source(file.path(soil_loc, "model_semiArid_functions.R"), local = TRUE)
   source(file.path(soil_loc, "modified_semiArid_functions.R"), local = TRUE)
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"), local = TRUE)
@@ -107,33 +107,58 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
   if (length(unique(farm_EnZ$enz))==1){
     farm_EnZ = unique(farm_EnZ$enz)
-    log4r::info(my_logger, paste("farmparameters collection contain unique info on EnZ for farmId", farmId, sep=" "))
+    log4r::info(
+      my_logger, 
+      paste("farmparameters collection contain unique info on EnZ for farmId", farmId, sep=" ")
+      )
   } else if (length(unique(farm_EnZ$enz))==0){
-    log4r::error(my_logger, paste("Caution: farmparameters collection doesn't contain info on EnZ for farmId", farmId, sep=" "))
+    log4r::error(
+      my_logger, 
+      paste("Caution: farmparameters collection doesn't contain info on EnZ for farmId", 
+            farmId, 
+            sep=" ")
+      )
   } else if (length(unique(farm_EnZ$enz))>1){
-    log4r::error(my_logger, paste("Caution: farmparameters collection content SEVERAL EnZ for farmId", farmId,"leading to conflicts", sep=" "))
+    log4r::error(
+      my_logger, 
+      paste("Caution: farmparameters collection content SEVERAL EnZ for farmId",
+            farmId,"leading to conflicts",
+            sep=" ")
+      )
   }
-  
-  ## Pulling calculation factors
-  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>% filter(type=="manure") %>% 
-    rename(species=manure_source)
+
+  ## Reading in calculation factors (parameters) from csv files
+  animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>%
+    filter(type=="manure") %>% rename(species=manure_source)
   agroforestry_factors <- read_csv(file.path(modelling_data_loc,"data", "agroforestry_factors.csv")) 
   crop_data <- read_csv(file.path(modelling_data_loc,"data", "crop_factors.csv"))
   grazing_factors <- read_csv(file.path(modelling_data_loc,"data", "grazing_factors.csv"))
   manure_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv"))
-  natural_area_factors <- read_csv(file.path(modelling_data_loc, "data", "natural_area_factors.csv")) %>%
-    filter(pedo_climatic_area==farm_EnZ) 
+  natural_area_factors <- read_csv(
+    file.path(modelling_data_loc, "data", "natural_area_factors.csv")
+    ) %>% filter(pedo_climatic_area==farm_EnZ) 
   pasture_data <- read_csv(file.path(modelling_data_loc,"data", "pasture_factors.csv"))
   tilling_factors <- read_csv(file.path(modelling_data_loc,"data", "tilling_factors.csv"))
   soil_cover_data <- read_csv(file.path(modelling_data_loc,"data", "soil_cover_factors.csv"))
-  soilMapsData=data.frame(SOC=c(1), clay=c(25), silt =c(30), bulk_density=c(1.2)) # to be pulled and processed from S3 bucket
   
-  ################# Pulling inputs
+  ## Creating a data frame to hold soil data
+  soilMapsData <- data.frame(SOC=c(1), clay=c(25), silt =c(30), bulk_density=c(1.2)) # to be pulled and processed from S3 bucket
+  
+  ## Getting parcel inputs dataframe
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
+  
+  ## Getting mean lon and lat
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
+  
   ## Just checking grazing yields continuity
-  total_grazing_table = get_total_grazing_table(landUseSummaryOrPractices,livestock, animal_factors, parcel_inputs)
+  total_grazing_table = get_total_grazing_table(
+    landUseSummaryOrPractices,
+    livestock, 
+    animal_factors,
+    parcel_inputs
+    )
+  
   #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
