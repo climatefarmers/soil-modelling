@@ -312,6 +312,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
     for (j in c(0:10)){
       year_chosen = landUseSummaryOrPractices[[1]][[paste('year',j,sep="")]]
       if(is.na(year_chosen$manureApplication[i])==FALSE){
+        # Manure (animal dung)
         if (year_chosen$manureApplication[i]>=0){
           add_manure_inputs <- rbind(add_manure_inputs,data.frame(
             parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
@@ -324,6 +325,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             remaining_frac = c(1)))
         }
       }
+      # Compost
       if(is.na(year_chosen$compostApplication[i])==FALSE){
         if (year_chosen$compostApplication[i]>=0){
           add_manure_inputs <- rbind(add_manure_inputs,data.frame(
@@ -337,6 +339,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             remaining_frac = c(1)))
         }
       }
+      # Hay
       if(is.na(year_chosen$hayStrawApplication[i])==FALSE){
         if (year_chosen$hayStrawApplication[i]>=0){
           add_manure_inputs <- rbind(add_manure_inputs,data.frame(

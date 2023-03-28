@@ -21,7 +21,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   }
   
   ## Check if JSONfile or farmId exists and read the farm data from the JSON file or MongoDB, respectively
-  if(is.na(JSONfile)){
+  if(!is.na(JSONfile)){
     JSONfile_entered = TRUE
     farms_everything = fromJSON(JSONfile)
   } else if(!is.na(farmId)) {
