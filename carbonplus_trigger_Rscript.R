@@ -23,8 +23,8 @@ launching_Rscripts <- function(init_file, farmId){
   copy_baseline_to_future_livestock <- TRUE
   copy_yearX_to_following_years_landUse <- TRUE
   copy_yearX_to_following_years_livestock <- TRUE
-  yearX_landuse <- 1
-  yearX_livestock <- 1
+  yearX_landuse <- 1  # setting to 0 will copy baseline
+  yearX_livestock <- 1  # setting to 0 will copy baseline
 
   #landUseSummaryOrPractices_schema_281022 <- readRDS('landUseSummaryOrPractices_schema_281022')
   my_logfile = paste(farmId,'__',str_replace_all(Sys.time(), c(" "="__", ":"="_")),'.log',sep="")

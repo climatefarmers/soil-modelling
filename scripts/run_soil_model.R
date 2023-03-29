@@ -66,22 +66,6 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   soilAnalysis = farms_everything$soilAnalysis
   browser()  # debugging
   ## Copying data from baseline to future depending on settings chosen 
-  if (copy_baseline_to_future_landUse == TRUE){
-    for(i in c(1:10)){
-      landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]] = 
-        landUseSummaryOrPractices[[1]][["year0"]]
-      }
-    log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", 0,
-                                 "was pasted to every following years", sep=" "))
-  }
-  if (copy_baseline_to_future_livestock == TRUE){
-    for(i in c(1:10)){
-      livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]] = 
-      livestock[["currentManagement"]][[1]]
-      }
-    log4r::info(my_logger, paste("MODIF: LIVESTICK: Data from year", 0,
-                                 "was pasted to every following years", sep=" "))
-  }
   if (copy_yearX_to_following_years_landUse == TRUE){
     for(i in c(yearX_landuse+1:10)){
       landUseSummaryOrPractices[[1]][[paste("year", i, sep="")]] = 
