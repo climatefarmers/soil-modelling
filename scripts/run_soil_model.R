@@ -1,5 +1,5 @@
 run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
-  # browser()  # for debugging
+  # browser()  # debugging
   ## Log starting run message
   log4r::info(my_logger, "run_soil_model.R started running")
   
@@ -64,7 +64,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
-  
+  browser()  # debugging
   ## Copying data from baseline to future depending on settings chosen 
   if (copy_baseline_to_future_landUse == TRUE){
     for(i in c(1:10)){
@@ -83,19 +83,17 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                  "was pasted to every following years", sep=" "))
   }
   if (copy_yearX_to_following_years_landUse == TRUE){
-    # last_year_to_duplicate = 1
-    for(i in c(last_year_to_duplicate+1:10)){
-      landUseSummaryOrPractices[[1]][[paste("year",i,sep="")]] = 
-        landUseSummaryOrPractices[[1]][[paste("year",last_year_to_duplicate,sep="")]]}
-    log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", last_year_to_duplicate,
+    for(i in c(yearX_landuse+1:10)){
+      landUseSummaryOrPractices[[1]][[paste("year", i, sep="")]] = 
+        landUseSummaryOrPractices[[1]][[paste("year", yearX_landuse, sep="")]]}
+    log4r::info(my_logger, paste("MODIF: EVERY PARCELS: Data from year", yearX_landuse,
                                  "was pasted to every following years", sep=" "))
   }
   if (copy_yearX_to_following_years_livestock == TRUE){
-    # last_year_to_duplicate = 1
-    for(i in c(last_year_to_duplicate+1:10)){
+    for(i in c(yearX_livestock+1:10)){
       livestock[["futureManagement"]][[1]][[paste("year",i,sep="")]] =
-        livestock[["futureManagement"]][[1]][[paste("year",last_year_to_duplicate,sep="")]]}
-    log4r::info(my_logger, paste("MODIF: LIVESTOCK: Data from year", last_year_to_duplicate,
+        livestock[["futureManagement"]][[1]][[paste("year",yearX_livestock,sep="")]]}
+    log4r::info(my_logger, paste("MODIF: LIVESTOCK: Data from year", yearX_livestock,
                                  "was pasted to every following years", sep=" "))
   }
   

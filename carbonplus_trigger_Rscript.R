@@ -19,10 +19,12 @@ launching_Rscripts <- function(init_file, farmId){
     sd_field_carbon_in=0.05,
     CFmade_grazing_estimations_Yes_No="Yes"
     )
-  copy_baseline_to_future_landUse <- FALSE
-  copy_baseline_to_future_livestock <- FALSE
-  copy_yearX_to_following_years_landUse <- FALSE
-  copy_yearX_to_following_years_livestock <- FALSE
+  copy_baseline_to_future_landUse <- TRUE
+  copy_baseline_to_future_livestock <- TRUE
+  copy_yearX_to_following_years_landUse <- TRUE
+  copy_yearX_to_following_years_livestock <- TRUE
+  yearX_landuse <- 1
+  yearX_livestock <- 1
 
   #landUseSummaryOrPractices_schema_281022 <- readRDS('landUseSummaryOrPractices_schema_281022')
   my_logfile = paste(farmId,'__',str_replace_all(Sys.time(), c(" "="__", ":"="_")),'.log',sep="")
