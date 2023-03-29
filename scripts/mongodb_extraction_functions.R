@@ -39,6 +39,7 @@ extract_longitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractice
   return(mean(longitudes))
 }
 
+## Helper function to calculate animal_inputs: extracts total grazing amount
 extract_total_grazing_amount <- function(landUseSummaryOrPractices, year = j, area){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts the overall grazing yield and bale grazing yield from the whole farm
@@ -67,6 +68,7 @@ extract_total_grazing_amount <- function(landUseSummaryOrPractices, year = j, ar
   return((bale_grazing_yield+grazing_yield)*area)
 }
 
+## Helper function to calculate animal_inputs: extracts grazing amount per parcel 
 extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_index = i, year = j, area){
   #takes a landUseSummaryOrPractices from farms collection and a parcel index i
   #extracts grazing yield and bale grazing yield from parcel index i
