@@ -19,8 +19,6 @@ launching_Rscripts <- function(init_file, farmId){
     sd_field_carbon_in=0.05,
     CFmade_grazing_estimations_Yes_No="Yes"
     )
-  copy_baseline_to_future_landUse <- TRUE
-  copy_baseline_to_future_livestock <- TRUE
   copy_yearX_to_following_years_landUse <- TRUE
   copy_yearX_to_following_years_livestock <- TRUE
   yearX_landuse <- 1  # setting to 0 will copy baseline
