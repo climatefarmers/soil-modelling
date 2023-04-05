@@ -162,6 +162,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
   
   ################# Calculations of C inputs per parcel and scenario
+  # Attention: YEARLY C inputs are calculated, naming misleading
   baseline_chosen="baseline"
   parcel_Cinputs =data.frame(parcel_ID=c(),
                              scenario=c(),

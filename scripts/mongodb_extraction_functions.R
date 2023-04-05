@@ -173,6 +173,8 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
   return(total_grazing_table)
 }
 
+# Helper function that extracts crop type per month per parcel:
+# In case of crop rotation there can be two different cash crops within one year (cash crop 1 & cash crop 2)
 get_monthly_cash_crop <- function(parcel_index = i, year_chosen){
   crop=rep(NA,12)
   for (k in c(1:12)){
