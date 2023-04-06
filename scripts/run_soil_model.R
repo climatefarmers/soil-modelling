@@ -129,7 +129,10 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   ## Getting parcel inputs dataframe
   parcel_inputs = get_parcel_inputs(landUseSummaryOrPractices)
   
-  ## Getting mean lon and lat
+  ## Getting Land use type (variable not used!)
+  landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
+  
+    ## Getting mean lon and lat
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
   
@@ -141,15 +144,23 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     parcel_inputs
     )
   
+  ## C inputs from farming practices 
   #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
+  # C inputs from additional organic matter: hay, compost, manure
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
+  # C inputs from tree biomass turnover
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
+  # C inputs from animal manure
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock, parcel_inputs)
-  bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
+  # C inputs from crop (cash/cover crop) and residues left biomass turnover
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices, pars)
   crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger, farm_EnZ)
-  landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
+  # C inputs from pasture biomass turnover
   pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, pars)
+  
+  ## Soil data input
+  # Bare field inputs
+  bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
   OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
   clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
   silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))

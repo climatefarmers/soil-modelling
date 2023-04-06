@@ -46,7 +46,8 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
   return(tC_inputs_per_ha_per_year)
 }
 
-
+### Pasture input: Carbon input from pasture biomass turnover
+# YEARLY
 get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_chosen, parcel){
   if(nrow(pasture_inputs)==0){
     return(0)}

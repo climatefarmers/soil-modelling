@@ -15,6 +15,7 @@ new.as_numeric <- function(input){
   return(as.numeric(sub(",", ".", input, fixed = TRUE)))
 }
 
+## Helper function to extract latitude
 extract_latitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices, parcel_index = i){
   #takes a landUseSummaryOrPractices from farms collection and the inde corresping to the parcel.
   #extracts the mean latitude of parcel's corners
@@ -27,6 +28,7 @@ extract_latitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices
   return(mean(latitudes))
 }
 
+## Helper function to extract longitude
 extract_longitude_landUseSummaryOrPractices <- function(landUseSummaryOrPractices, parcel_index = i){
   #takes a landUseSummaryOrPractices from farms collection and a parcel index
   #extracts the mean longitude of parcel's corners
@@ -93,6 +95,7 @@ extract_grazing_amount_parcel_i <- function(landUseSummaryOrPractices, parcel_in
   return((bale_grazing_yield+grazing_yield)*area)
 }
 
+## Helper function to extract total grazing and bale grazing yield from the whole farm over all years
 get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal_factors, parcel_inputs){
   #takes a landUseSummaryOrPractices from farms collection
   #extracts the overall grazing yield and bale grazing yield from the whole farm
@@ -101,6 +104,7 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
     bale_grazing_yield = 0
     grazing_yield = 0
     grazing_yield_non_arable_lands = 0
+    # Bale grazing yield from hay application
     for (i in c(1:length(landUseSummaryOrPractices[[1]]$parcelName))){
       if (is.null(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$baleGrazing[i])==TRUE){
         bale_grazing_yield = bale_grazing_yield + 0
@@ -118,9 +122,11 @@ get_total_grazing_table <- function(landUseSummaryOrPractices, livestock, animal
       } 
       
       for (k in c(1:12)){
+        # grazing yield from monthly grazing yield data
         if (landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$grazingYield[i][[1]][[k]]!=""){
           grazing_yield = grazing_yield + new.as_numeric(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$grazingYield[i][[1]][[k]])*
             parcel_inputs$area[i]
+          # grazing yield of non-arable land from monthly grazing yield data
           if (landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$landUseType[i]!="Arablecrops"){
             grazing_yield_non_arable_lands = grazing_yield_non_arable_lands + new.as_numeric(landUseSummaryOrPractices[[1]][[paste('year',year,sep="")]]$grazingYield[i][[1]][[k]])*
               parcel_inputs$area[i]
@@ -489,6 +495,7 @@ get_bare_field_inputs = function(landUseSummaryOrPractices, soil_cover_data, far
   # takes landUseSummaryOrPractices from farms collection
   # extracts bare soil inputs dataframe 
   bare_field_inputs = data.frame(parcel_ID = c(), scenario = c())
+  # one column per month
   for (k in c(1:12)){
     bare_field_inputs[[paste("bare_profile_",k,sep="")]] = c()
   }
@@ -744,6 +751,7 @@ get_fuel_inputs = function(fuel){
   return(fuel_inputs)
 }
 
+## Helper function to extract land use type (not used!)
 get_land_use_type <- function(landUseSummaryOrPractices, parcel_inputs){
   landUseType = data.frame(parcel_ID = c(), area = c(), uniqueLandUseType_Yes_No = c(), landUseType = c())
   temp_df=data.frame(landUseType_year0 = rep("-",nrow(parcel_inputs)))
@@ -858,11 +866,12 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
         } else {
           dryOrFresh = year_chosen$yieldsResiduesDryOrFresh[i]
         }
-        # building df for C inputs calculation
-        if (farm_EnZ == "Mediterranean north" | 
-            farm_EnZ == "Mediterranean south"){ # PDZ with 2 grass growing season
+        ### building df for C inputs calculation
+        # PDZ with 2 grass growing season
+        if (farm_EnZ == "Mediterranean north" | farm_EnZ == "Mediterranean south"){
           endWinterSeason = 5 # month index
           endSummerSeason = 10 # month index
+          # Project scenario: year 2 to 10
           pasture_inputs <- rbind(pasture_inputs, 
                                   data.frame(scenario = c(paste('year',j,sep="")),
                                              parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
@@ -897,6 +906,7 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
                                                                     max(monthly_grazing_yield$grazing_yield[c(endWinterSeason:endSummerSeason)]+monthly_grazing_yield$residue_left[c(endWinterSeason:endSummerSeason)]),0)), 
                                                pasture_efficiency = c(1/(1+pasture_efficiency_potential_difference*(1-exp(-0.36*previous_AMP_years))))))
           }
+        # PDZ with only one growing season 
         } else { # PDZ with only one growing season
           pasture_inputs <- rbind(pasture_inputs, 
                                   data.frame(scenario = c(paste('year',j,sep="")),
@@ -912,20 +922,19 @@ get_pasture_inputs <- function(landUseSummaryOrPractices, grazing_factors, farm_
                                              dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left),0)), 
                                              fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left),0)), 
                                              pasture_efficiency = c(pasture_efficiency) ))
-          # baseline scenario
           if (j==0){ # CAUTION :the value used there should have been monitored, update to year 1 is year 0 isn't accurate enough
-            pasture_inputs <- rbind(pasture_inputs, 
+            pasture_inputs <- rbind(pasture_inputs,
                                     data.frame(scenario = c("baseline"),
-                                               parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]), 
+                                               parcel_ID = c(landUseSummaryOrPractices[[1]]$parcelName[i]),
                                                grass = c("Generic grasses"),
                                                perennial_frac = c(0),
-                                               n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE 
-                                               dry_yield = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$grazing_yield),0)), 
-                                               fresh_yield = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$grazing_yield),0)), 
-                                               dry_residual = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$residue_left),0)), 
-                                               fresh_residual = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$residue_left),0)), 
-                                               dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left))), 
-                                               fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left))), 
+                                               n_fixing_frac = c(0), # CAUTION: TO BE AUTOMATED FOR CO2-EMISSION BALANCE
+                                               dry_yield = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$grazing_yield),0)),
+                                               fresh_yield = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$grazing_yield),0)),
+                                               dry_residual = c(ifelse(dryOrFresh=="Dry", sum(monthly_grazing_yield$residue_left),0)),
+                                               fresh_residual = c(ifelse(dryOrFresh=="Fresh", sum(monthly_grazing_yield$residue_left),0)),
+                                               dry_agb_peak = c(ifelse(dryOrFresh=="Dry", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left))),
+                                               fresh_agb_peak = c(ifelse(dryOrFresh=="Fresh", max(monthly_grazing_yield$grazing_yield+monthly_grazing_yield$residue_left))),
                                                pasture_efficiency = c(1/(1+pasture_efficiency_potential_difference*(1-exp(-0.36*previous_AMP_years))))))
           }
         }
