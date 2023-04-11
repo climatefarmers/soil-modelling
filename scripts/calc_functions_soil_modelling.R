@@ -1,6 +1,7 @@
 library(tidyr)
 
-### Animal input due to manure daily spreading over a grazed field
+### Added manure input: Carbon input due to manure/compost/hay daily spreading over a grazed field
+# YEARLY
 get_monthly_Cinputs_add_manure <- function (add_manure_inputs, manure_factors, scenario_chosen, parcel){
   if(nrow(add_manure_inputs)==0){
     return(0)}
@@ -11,7 +12,8 @@ get_monthly_Cinputs_add_manure <- function (add_manure_inputs, manure_factors, s
   return(tC_inputs_add_manure)
 }
 
-### Animal input due to manure daily spreading over a grazed field
+### Animal input: Carbon input due to manure daily spreading over a grazed field
+# YEARLY
 get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario_chosen, parcel){
   if(nrow(animal_inputs)==0){
     return(0)}
@@ -22,7 +24,8 @@ get_monthly_Cinputs_animals <- function (animal_inputs, animal_factors, scenario
   return(tC_inputs_per_ha_per_year)
 }
 
-
+### Agroforestry input
+# YERLY
 get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_factors, scenario_chosen, parcel, lat_farmer){
   if(nrow(agroforestry_inputs)==0){
     return(0)}
@@ -43,7 +46,8 @@ get_monthly_Cinputs_agroforestry <- function (agroforestry_inputs, agroforestry_
   return(tC_inputs_per_ha_per_year)
 }
 
-
+### Pasture input: Carbon input from pasture biomass turnover
+# YEARLY
 get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_chosen, parcel){
   if(nrow(pasture_inputs)==0){
     return(0)}
@@ -73,6 +77,8 @@ get_monthly_Cinputs_pasture <- function (pasture_inputs, pasture_data, scenario_
   return(tC_inputs_per_ha_per_year)
 }
 
+### Crop input: Carbon input from cash crops and cover crops biomass turnover rates
+# YEARLY
 get_monthly_Cinputs_crop <- function (crop_inputs, crop_data, scenario_chosen, parcel, farm_EnZ){
   if(nrow(crop_inputs)==0){
     return(0)}
