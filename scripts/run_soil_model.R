@@ -64,7 +64,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
   soilAnalysis = farms_everything$soilAnalysis
-  browser()  # debugging
+
   ## Copying data from baseline to future depending on settings chosen 
   if (copy_yearX_to_following_years_landUse == TRUE){
     for(i in c(yearX_landuse+1:10)){
@@ -133,32 +133,50 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
   
-  ## Just checking grazing yields continuity
+  ## Getting grazing data dataframe
   total_grazing_table = get_total_grazing_table(
     landUseSummaryOrPractices,
     livestock, 
     animal_factors,
     parcel_inputs
     )
-  
+
+  ## Calculation of C inputs
   #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
   agroforestry_inputs = get_agroforestry_inputs(landUseSummaryOrPractices)
   animal_inputs = get_animal_inputs(landUseSummaryOrPractices,livestock, parcel_inputs)
   bare_field_inputs = get_bare_field_inputs(landUseSummaryOrPractices, soil_cover_data, farm_EnZ)
   crop_inputs = get_crop_inputs(landUseSummaryOrPractices, pars)
-  crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data, my_logger, farm_EnZ)
+  crop_inputs = get_baseline_crop_inputs(landUseSummaryOrPractices, crop_inputs, crop_data,
+                                         my_logger, farm_EnZ)
+  
+  ## 
   landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
-  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ, total_grazing_table, my_logger, pars)
-  OCS_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
-  clay_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
-  silt_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
-  bdod_df = s3read_using(FUN = read_csv, object = paste("s3://soil-modelling/soil_variables/",farmId,"/bdod.csv",sep=""))
-  soilMapsData = data.frame(SOC=mean(OCS_df$`ocs_0-30cm_mean`), SOC_Q0.05=mean(OCS_df$`ocs_0-30cm_Q0.05`), SOC_Q0.95=mean(OCS_df$`ocs_0-30cm_Q0.95`),
-                            clay=mean(clay_df$`clay_5-15cm_mean`)/10, clay_Q0.05=mean(clay_df$`clay_5-15cm_Q0.05`)/10, clay_Q0.95=mean(clay_df$`clay_5-15cm_Q0.95`)/10,
-                            silt=mean(silt_df$`silt_5-15cm_mean`)/10, silt_Q0.05=mean(silt_df$`silt_5-15cm_Q0.05`)/10, silt_Q0.95=mean(silt_df$`silt_5-15cm_Q0.95`)/10,
-                            bulk_density=mean(bdod_df$`bdod_5-15cm_mean`)/100, bdod_Q0.05=mean(bdod_df$`bdod_5-15cm_Q0.05`)/100, bdod_Q0.95=mean(bdod_df$`bdod_5-15cm_Q0.95`)/100)# waiting for values from soil maps
+  pasture_inputs <- get_pasture_inputs(landUseSummaryOrPractices, grazing_factors, farm_EnZ,
+                                       total_grazing_table, my_logger, pars)
+  OCS_df = s3read_using(FUN = read_csv, object = 
+                          paste("s3://soil-modelling/soil_variables/",farmId,"/ocs.csv",sep=""))
+  clay_df = s3read_using(FUN = read_csv, object = 
+                           paste("s3://soil-modelling/soil_variables/",farmId,"/clay.csv",sep=""))
+  silt_df = s3read_using(FUN = read_csv, object = 
+                           paste("s3://soil-modelling/soil_variables/",farmId,"/silt.csv",sep=""))
+  bdod_df = s3read_using(FUN = read_csv, object = 
+                           paste("s3://soil-modelling/soil_variables/",farmId,"/bdod.csv",sep=""))
+  soilMapsData = data.frame(SOC=mean(OCS_df$`ocs_0-30cm_mean`), 
+                            SOC_Q0.05=mean(OCS_df$`ocs_0-30cm_Q0.05`), 
+                            SOC_Q0.95=mean(OCS_df$`ocs_0-30cm_Q0.95`),
+                            clay=mean(clay_df$`clay_5-15cm_mean`)/10, 
+                            clay_Q0.05=mean(clay_df$`clay_5-15cm_Q0.05`)/10,
+                            clay_Q0.95=mean(clay_df$`clay_5-15cm_Q0.95`)/10,
+                            silt=mean(silt_df$`silt_5-15cm_mean`)/10, 
+                            silt_Q0.05=mean(silt_df$`silt_5-15cm_Q0.05`)/10, 
+                            silt_Q0.95=mean(silt_df$`silt_5-15cm_Q0.95`)/10,
+                            bulk_density=mean(bdod_df$`bdod_5-15cm_mean`)/100,
+                            bdod_Q0.05=mean(bdod_df$`bdod_5-15cm_Q0.05`)/100, 
+                            bdod_Q0.95=mean(bdod_df$`bdod_5-15cm_Q0.95`)/100) # waiting for values from soil maps
   soil_inputs <- get_soil_inputs(landUseSummaryOrPractices, soilAnalysis, soilMapsData)
+
   tilling_inputs <- get_tilling_inputs(landUseSummaryOrPractices, tilling_factors, farm_EnZ)
   
   ################# Calculations of C inputs per parcel and scenario
