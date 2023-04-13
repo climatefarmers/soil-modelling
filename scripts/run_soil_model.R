@@ -230,7 +230,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                     mutate(farm_frac= paste(round(area/sum(area)*100),'%')), by="parcel_ID") %>% 
     group_by(parcel_ID,farm_frac) %>% 
     mutate(Cinput_per_ha_project = sum(tot_Cinputs[scenario!=baseline_chosen & scenario!="year0"])/10) %>%
-    filter(scenario==baseline_chosen) %>%
+    filter(scenario==baseline_chosen) >%
     mutate(additional_Cinput_per_ha = round(Cinput_per_ha_project - tot_Cinputs,2), 
            relative_increase=paste(as.character(ifelse(tot_Cinputs==0,NA,as.integer((Cinput_per_ha_project- tot_Cinputs)
                                                                                     /tot_Cinputs*100))),'%'),

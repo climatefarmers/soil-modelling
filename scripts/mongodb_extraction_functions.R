@@ -228,7 +228,9 @@ detect_crop_rotations <- function(landUseSummaryOrPractices, parcel_index = i){
   }
 }
   
-
+## Helper function to get clay content in %
+# if soil samples available: farmer's input (%)
+# else: soil maps
 get_clay_content <- function(soilAnalysis, soilMapsData){
   if (is.null(soilAnalysis$clayContentPercent)==TRUE){
     return(soilMapsData$clay)
@@ -245,6 +247,9 @@ get_clay_content <- function(soilAnalysis, soilMapsData){
   }
 }
 
+## Helper function to get silt content in %
+# if soil samples available: farmer's input (%)
+# else: soil maps
 get_silt_content <- function(soilAnalysis, soilMapsData){
   if (is.null(soilAnalysis$siltContentPercent)==TRUE){
     return(soilMapsData$silt)
@@ -261,6 +266,7 @@ get_silt_content <- function(soilAnalysis, soilMapsData){
   }
 }
 
+## Helper function to get carbon content in kg/ha?
 get_SOC_content <- function(soilAnalysis, soilMapsData){
   if (is.null(soilAnalysis$clayContentPercent)==TRUE & is.null(soilAnalysis$organicMatterContent)==TRUE){ #case that SOC & SOM variables weren't found
     return(soilMapsData$SOC)
