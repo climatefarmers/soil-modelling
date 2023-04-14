@@ -1,7 +1,7 @@
 #MongoDB parameters extraction functions
 
 ### TOOL FUNCTIONS
-
+## Helper function to convert inputs to numeric
 new.as_numeric <- function(input){
   for(i in c(1:length(input))){
     if(is.null(input[i])==TRUE){
@@ -302,6 +302,8 @@ get_SOC_content <- function(soilAnalysis, soilMapsData){
   }
 }
 
+
+## Helper function to get bulk density
 get_bulk_density <- function(soilAnalysis, soilMapsData){
   if (is.null(soilAnalysis$bulkDensity)==TRUE){
     return(soilMapsData$bulk_density)
@@ -371,7 +373,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             remaining_frac = c(ifelse(is.null(year_chosen$baleGrazing[i])==TRUE, 1, # case were variable isn't found
                                       ifelse(is.na(year_chosen$baleGrazing[i])==TRUE, 1, # case were variable had no value
                                              ifelse(year_chosen$baleGrazing[i]==TRUE, # case were baleGrazing happens
-                                                    ifelse(landUseSummaryOrPractices[[1]][[paste('year', j, sep="")]]$residueLeftAfterBaleGrazing[i]=="10-15", 12.5, # single case hand fix
+                                                    ifelse(landUseSummaryOrPractices[[1]][[paste('year', j, sep="")]]$residueLeftAfterBaleGrazing[i]=="10-15", 0.125, #12.5, # single case hand fix
                                                            new.as_numeric(landUseSummaryOrPractices[[1]][[paste('year', j, sep="")]]$residueLeftAfterBaleGrazing[i]))/100,
                                                     1)))))) #case were no grazing happens meaning it is 100% amended to the soil
         }

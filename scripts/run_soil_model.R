@@ -132,7 +132,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   ## Getting Land use type (variable not used!)
   landUseType = get_land_use_type(landUseSummaryOrPractices, parcel_inputs)
   
-    ## Getting mean lon and lat
+  ## Getting mean lon and lat
   lon_farmer <- mean(parcel_inputs$longitude)
   lat_farmer <- mean(parcel_inputs$latitude)
   
@@ -144,7 +144,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     parcel_inputs
     )
 
-  ## Calculation of C inputs
+  ## Extraction of C inputs per parcel and scenario
   #farm_EnZ = clime.zone.check(init_file, lat_farmer, lon_farmer)
   # C inputs from additional organic matter: hay, compost, manure
   add_manure_inputs = get_add_manure_inputs(landUseSummaryOrPractices)
@@ -230,7 +230,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                     mutate(farm_frac= paste(round(area/sum(area)*100),'%')), by="parcel_ID") %>% 
     group_by(parcel_ID,farm_frac) %>% 
     mutate(Cinput_per_ha_project = sum(tot_Cinputs[scenario!=baseline_chosen & scenario!="year0"])/10) %>%
-    filter(scenario==baseline_chosen) >%
+    filter(scenario==baseline_chosen) %>%
     mutate(additional_Cinput_per_ha = round(Cinput_per_ha_project - tot_Cinputs,2), 
            relative_increase=paste(as.character(ifelse(tot_Cinputs==0,NA,as.integer((Cinput_per_ha_project- tot_Cinputs)
                                                                                     /tot_Cinputs*100))),'%'),
@@ -241,6 +241,8 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     select(parcel_ID, farm_frac, additional_Cinput_per_ha, relative_increase, additional_Cinput_total, absolute_contribution_perc)
   #write.csv(parcel_Cinputs_addition,file.path(project_loc,project_name,"results/parcel_Cinputs_addition.csv"), row.names = TRUE)
   
+  ## Calculation of total c inputs for the whole farm
+  # Sum over all parcels
   yearly_Cinputs_farm = merge(x= parcel_Cinputs, 
                               y= parcel_inputs,
                               by="parcel_ID") %>%
@@ -264,16 +266,20 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   }
   
   ################# Initialisation by making the model reach SOC of natural areas of the pedo-climatic area
-  # Calculating the average soil parameters among parcels
+  
+  ## Calculating the average soil parameters among parcels
   mean_SOC = mean(soil_inputs$SOC)
   mean_clay = mean(soil_inputs$clay)
   mean_silt = mean(soil_inputs$silt)
   mean_bulk_density = mean(soil_inputs$bulk_density)
-  # Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
+  
+  ## Pulling DMP/RPM ratios from different kind of land use in corresponding pedoclimatic area 
   dr_ratio_agroforestry = unique(natural_area_factors$dr_ratio_agroforestry)
   dr_ratio_non_irrigated = unique(natural_area_factors$dr_ratio_non_irrigated)
   dr_ratio_irrigated = unique(natural_area_factors$dr_ratio_irrigated)
-  # Building a mean input dataframe to feed RothC
+  
+  ## Building a mean input dataframe to feed RothC
+  # Mean value for each model input parameter
   mean=c(list(rep(0,12)),
          list(c(dr_ratio_non_irrigated,rep(NA,11))),
          list(as.factor(c(logical(12)))),
@@ -293,7 +299,9 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   colnames_ranges=c("run","dr_ratio","bare","past_temp","future_temp","past_precip","future_precip","past_evap","future_evap","soil_thick","SOC","clay","silt","bulk_density","pE","tilling_factor")
   mean_input = data.frame(mean)
   colnames(mean_input) = colnames_ranges
-  ## Modelling perform several times with different inputs
+  
+  ## Standard deviation for each input
+  # Modelling perform several times with different inputs
   # Let's define standard deviation for each input representing extrinsic uncertainty of the model
   sd=data.frame(field_carbon_in=pars$sd_field_carbon_in,
                 dr_ratio = 0.025,
@@ -307,7 +315,9 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                 bulk_density = 0.025,#(soilMapsData$bdod_Q0.95-soilMapsData$bdod_Q0.05)/3,
                 pE = 0.025,
                 tilling_factor = 0.025)
-  # Initialising data structures
+  
+  ## Initialising data structures
+  # Data frame per year that includes soc per year, co2 per year and certificates per year
   step_in_table <- data.frame(run=c(),
                               year=c(),
                               baseline_step_SOC_per_hectare=c(),
@@ -315,7 +325,9 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                               baseline_step_total_CO2=c(),
                               holistic_step_total_CO2=c(),
                               yearly_certificates=c())
+  # Data frame that includes total soc per parcel per scenario 
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
+  # Data frame that includes total soc per farm
   farm_results<-data.frame(run=c(),time=c(),scenario=c(),SOC_farm=c())
   
   # if (length(unique(is.na(parcel_Cinputs)))==1){
@@ -323,13 +335,18 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   # } else {
   #   log4r::error(my_logger, 'CAUTION: there is NA in C inputs (before entering in calculation loops).')
   # }
-  #Chossing model version
+  
+  ## Chossing model version
   model_version = ifelse(sum(weather_data$past_precipitation)/sum(weather_data$past_pevap)<0.65 &
                            sum(weather_data$past_precipitation)<600,"Semi-arid","Normal")
+  
+  ## Initialisation of model runs
   # Initialising run counter
   run_ID = 0
   # Choosing a number of run to perform extrinsic uncertainty
   n_run = pars$n_run # moved out to pars argument
+  
+  ## Model runs
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
     all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
@@ -348,7 +365,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                           silt = rnorm(1,1,sd$silt),
                           bulk_density = rnorm(1,1,sd$bulk_density))
     
-    #Choose randomly one of the two climate scenari
+    #Choose randomly one of the two climate scenario
     climate_scenario = ifelse(sample(0:1,1)==0, 'rcp4.5', 'rcp8.5')
     if (climate_scenario=='rcp4.5'){
       mean_input$future_temp = weather_data$future_temperature_rcp4.5
@@ -501,7 +518,10 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     farm_results <- rbind(farm_results_batch,farm_results)
     print(paste(paste(paste(paste("Run ",n),"over"),n_run),"done"))
     
-  }
+  } # End of model runs
+  
+  ## Final data frames by taking the average over the runs
+  # Results of soc, co2, certificates per year
   step_in_table_final <- step_in_table %>% group_by(year) %>% 
     summarise(yearly_certificates_average=mean(yearly_certificates),
               yearly_certificates_sd=sd(yearly_certificates),
@@ -514,16 +534,17 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
     )%>%
     mutate(yearly_certificates_mean=round(yearly_certificates_average-1.96*yearly_certificates_sd)) %>%
     select(year,yearly_certificates_mean,yearly_certificates_average,yearly_certificates_sd,baseline_step_total_CO2_mean,baseline_step_total_CO2_var,holistic_step_total_CO2_mean,holistic_step_total_CO2_var,cov_step_total_CO2,sd_diff)
+  #Results of soc per parel per scenario/year
   all_results_final <- all_results %>% group_by(scenario,parcel_ID,time,farm_frac) %>% 
     summarise(SOC_mean=mean(SOC), SOC_sd=sd(SOC)) %>%
     select(parcel_ID,farm_frac,time,scenario,SOC_mean,SOC_sd)
+  #Results of soc on farm level
   farm_results_final <- farm_results %>% group_by(time,scenario) %>% 
     summarise(SOC_farm_mean=mean(SOC_farm),
               SOC_farm_sd=sd(SOC_farm)) %>%
     select(time,scenario,SOC_farm_mean,SOC_farm_sd)
   
-  # # PLOTTING DATA - NO NEED TO BE DEPLOYED YET
-  # 
+  ## PLOTTING DATA - NO NEED TO BE DEPLOYED YET
   name<-paste("SOC_results_farm_",farmId,sep = "")
   graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
     geom_line()+
