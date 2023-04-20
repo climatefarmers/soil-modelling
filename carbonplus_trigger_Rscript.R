@@ -25,7 +25,8 @@ launching_Rscripts <- function(init_file, farmId){
   copy_yearX_to_following_years_livestock <- FALSE
 
   #landUseSummaryOrPractices_schema_281022 <- readRDS('landUseSummaryOrPractices_schema_281022')
-  my_logfile = paste(farmId,'__',str_replace_all(Sys.time(), c(" "="__", ":"="_")),'.log',sep="")
+  if(!dir.exists('logs')) {dir.create('logs')}
+  my_logfile = file.path('logs', paste(farmId,'__',str_replace_all(Sys.time(), c(" "="__", ":"="_")),'.log',sep=""))
   my_console_appender = console_appender(layout = default_log_layout())
   my_file_appender = file_appender(my_logfile, append = TRUE, 
                                    layout = default_log_layout())
