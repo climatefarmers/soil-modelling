@@ -1,0 +1,8 @@
+country,pedo_climatic_area,tillage_factor,minimum_tillage_factor
+Portugal,Mediterranean north,1.05,1
+Portugal,Mediterranean south,1.05,1
+Germany,Continental,1.16,1.09
+,temperate moist,1.16,1.09
+,tropical moist,1.23,1.16
+,temperate dry,1.1,1.03
+,tropical dry,1.17,1.1

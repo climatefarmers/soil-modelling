@@ -1,0 +1,25 @@
+type,manure_source,mass_kg_per_animal,daily_vs_excretion,ef_enteric_fermentation_kg_head,n_excretion_rate_kg_1000am,carbon_content,om_kg_per_ton,hummification_coefficient,effective_organic_matter_kg_per_ton,manure_kg_per_kg_animal,manure_kg_per_day_per_animal,manure_kg_per_year_per_animal,manure_ton_per_day_per_animal,om_kg_per_day_per_animal,om_kg_per_year_per_animal,c_kg_per_year_per_animal,Source
+manure,Dairy Cattle,600,4.5,117,0.5,0.346,,,,36.8072872,48.68774652,17332.83776,0.048687747,7.400537471,2701.196177,1570.462894,USDA
+manure,Beef Cattle,405,2.3085,57,0.42,0.345,152,0.7,106,26.8072872,23.9355,8521.038,0.0239355,3.638196,1327.94154,772.0590349,
+manure,Other Cattle,405,2.3085,57,0.42,0.345,152,0.7,106,26.8072872,23.9355,8521.038,0.0239355,3.638196,1327.94154,772.0590349,
+manure,Calves (less than 1year),203,1.15,57,0.42,0.346,152,0.7,53,,12,4260,0.012,1.8,650,386,USDA
+manure,Sows/boars,120,0.6,1.5,0.65,0.413,153,0.33,70,,10,2100,0.01,1.8,600,400,USDA
+manure,Pigs,76,0.342,1.5,0.65,0.413,153,0.33,50,28.6216552,4.7956,1707.2336,0.0047956,0.7337268,267.810282,300,
+manure,Pigglets (less than 1 year),40,0.2,1.5,0.65,0.413,153,0.33,25,28.6216552,2.4,900,0.0025,0.4,140,155.7036523,
+manure,Poultry (Hens layers),1.4,0.01722,0,1.45,,416,0.33,137,27.442316,0.0847,30.1532,0.0000847,0.0352352,12.860848,7.477237209,USDA
+manure,Poultry,1.4,0.01722,0,1.45,,419,0.36,151,36.28736,0.112,39.872,0.000112,0.046928,17.12872,9.95855814,USDA
+manure,Turkey,6.8,0.07004,0,0.74,,427,0.36,154,19.7766112,0.29648,105.54688,0.00029648,0.12659696,46.2078904,26.86505256,USDA
+manure,Sheep,40,0.328,9,0.36,0.38,195,0.7,137,,,,,,,100,https://link.springer.com/article/10.1007/s11104-020-04528-x (C content manure)
+manure,Lambs (less than 1 year),20,0.16,9,0.36,0.38,100,0.35,70,,,,,,,50,
+manure,Goats,40,0.36,9,0.46,0.38,174,0.7,122,,,,,,,100,https://link.springer.com/article/10.1007/s11104-020-04528-x (C content manure)
+manure,Goat Kids(less than 1 year),20,0.18,9,0.46,0.38,174,0.7,60,,,,,,,50,
+manure,Horses,377,2.13005,18,0.3,,,,,,,,,,,,
+manure,Mules/Asses,120,0.864,10,0.3,,,,,,,,,,,,
+manure,Camels,217,2.4955,46,0.38,,,,,,,,,,,,
+manure,Buffalo,509,3.9193,,0.45,,,,,,,,,,,,
+manure,Ducks,2.7,0.01998,0,0.83,,,,,,,,,,,,
+manure,Deer,,,20,,,,,,,,,,,,,
+compost,Mushroom compost,,,,,,211,0.5,106,,,,,,,,
+compost,Houshold compost,,,,,,242,0.75,181,,,,,,,,
+compost,Green compost,,,,,0.12,179,0.75,134,,,,,,,,
+compost,Hay,,,,,0.5,,,,,,,,,,,
