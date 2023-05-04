@@ -4,8 +4,8 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   log4r::info(my_logger, "run_soil_model.R started running")
   
   ## Define paths
-  soil_loc <-init_file$soil_loc
-  modelling_data_loc <- init_file$modelling_data_loc
+  soil_loc <- init_file$soil_loc
+  modelling_data_loc <- init_file$soil_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
   
   ## Set environmental variables for AWS 
@@ -50,7 +50,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   source(file.path(soil_loc, "scripts/calc_functions_soil_modelling.R"), local = TRUE)
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"), local = TRUE)
   #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"), local = TRUE)
-  source(file.path(modelling_data_loc, "scripts/weather_data_pulling_functions.R"), local = TRUE)
+  source(file.path(soil_loc, "scripts/weather_data_pulling_functions.R"), local = TRUE)
   
   ## Selecting only the first case if more than one farmId match in mongoDB
   if (length(farms_everything$farmInfo$farmId)>1){
@@ -588,10 +588,8 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
               "\nNumber of runs: ",run_ID,
               ".\nGrazing estimations by CF (Y/N): ", pars$CFmade_grazing_estimations_Yes_No,
               "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",sd$field_carbon_in,
-              ifelse(copy_baseline_to_future_landUse==TRUE,"\nCAUTION: Duplicated and applied 'Past/current management' data to EVERY parcels and following years from year 0.",""),
-              ifelse(copy_baseline_to_future_livestock==TRUE,"\nCAUTION: Duplicated and applied 'Current livestock' data to EVERY following years from year 0.",""),
-              ifelse(copy_yearX_to_following_years_landUse==TRUE,paste("\nCAUTION: Duplicated and applied land use from 'year",last_year_to_duplicate,"' to following years in EVERY parcels.",sep=""),""),
-              ifelse(copy_baseline_to_future_landUse==TRUE,paste("\nCAUTION: Duplicated and applied livestock from 'year",last_year_to_duplicate,"' to EVERY following years.",sep=""),""),sep="")
+              ifelse(copy_yearX_to_following_years_landUse==TRUE,paste("\nCAUTION: Duplicated and applied land use from 'year",yearX_landuse,"' to following years in EVERY parcel.",sep=""),""),
+              ifelse(copy_yearX_to_following_years_livestock==TRUE,paste("\nCAUTION: Duplicated and applied livestock from 'year",yearX_livestock,"' to ALL following years.",sep=""),""),sep="")
   write.csv(landUseType,file.path(init_file$soil_loc,"logs",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
   # name<-paste("Certificates_farm_",project_name,sep = "")
   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))

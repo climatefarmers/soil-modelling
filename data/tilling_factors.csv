@@ -1,4 +1,4 @@
-country,pedo_climatic_area,tillage_factor,minimum_tillage_factor
+country,pedo_climatic_area,tilling_factor,minimum_tillage_factor
 Portugal,Mediterranean north,1.05,1
 Portugal,Mediterranean south,1.05,1
 Germany,Continental,1.16,1.09
