@@ -1,4 +1,4 @@
-run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){ 
+run_soil_model <- function(init_file, pars, farm_data, farm_EnZ){ 
   # browser()  # debugging
   ## Log starting run message
   log4r::info(my_logger, "run_soil_model.R started running")
@@ -7,42 +7,6 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   soil_loc <- init_file$soil_loc
   modelling_data_loc <- init_file$soil_loc
   climatic_zone_loc <- init_file$climatic_zone_loc
-  
-  ## Set environmental variables for AWS 
-  Sys.setenv(
-    "AWS_ACCESS_KEY_ID" = init_file$AWS_ACCESS_KEY_ID,
-    "AWS_SECRET_ACCESS_KEY" = init_file$AWS_SECRET_ACCESS_KEY,
-    "AWS_DEFAULT_REGION" = init_file$AWS_DEFAULT_REGION
-  )
-  
-  ## Check that only one source of farm data was provided
-  if(!is.na(farmId) & !is.na(JSONfile)){
-    stop("Both farmId AND JSON files were fed to the model. Please choose only one.")
-  }
-  
-  ## Check if JSONfile or farmId exists and read the farm data from the JSON file or MongoDB, respectively
-  if(!is.na(JSONfile)){
-    JSONfile_entered = TRUE
-    farms_everything = fromJSON(JSONfile)
-  } else if(!is.na(farmId)) {
-    connection_string = init_file$connection_string_prod  # Other options: init_file$connection_string_cfdev
-    farms_collection = mongo(collection="farms", db="carbonplus_production_db", # Other options: db="carbonplusdb"
-                             url=connection_string)
-    farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
-  } else {stop("Neither farmId nor a JSON file were fed to the model.")}
-  
-  ## Checking correctness and unicity of farmIds
-  if (is.null(farms_everything$farmInfo)){ # Can this be TRUE? Because already used above to select the data. Move to above?
-    log4r::error(my_logger, "farmId wasn't found.")
-  } else if (length(farms_everything$farmInfo$farmId)>1){
-    log4r::error(my_logger, 
-                 paste("Multiple identical farmIds were found. Number of farmIds matching =",
-                       length(farms_everything$farmInfo$farmId),".", sep="")
-                 )
-  } else if (farms_everything$farmInfo$farmId==farmId){
-    log4r::info(my_logger, paste("farm with farmId = ",farmId," has been read succesfully. 
-                                  \nMail adress = ",farms_everything$farmInfo$email,'.', sep=""))
-  }
 
   ## Sourcing code from files
   source(file.path(soil_loc, "model_semiArid_functions.R"), local = TRUE)
@@ -51,15 +15,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
   source(file.path(soil_loc, "scripts/mongodb_extraction_functions.R"), local = TRUE)
   #source(file.path(modelling_data_loc, "legacy/scripts/Climatic_zone_check_function.R"), local = TRUE)
   source(file.path(soil_loc, "scripts/weather_data_pulling_functions.R"), local = TRUE)
-  
-  ## Selecting only the first case if more than one farmId match in mongoDB
-  if (length(farms_everything$farmInfo$farmId)>1){
-    farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""),
-                                             limit = 1)
-    log4r::info(my_logger,paste("After multiple matches, only the first profile with farmId = ",
-                                farmId," was selected.",sep=""))
-  }
-  
+
   ## Extracting livestock, landUseSummaryOrPractices and soilAnalysis from the farms_everything variable
   livestock = farms_everything$liveStock
   landUseSummaryOrPractices = farms_everything$landUse$landUseSummaryOrPractices
@@ -81,34 +37,6 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                  "was pasted to every following years", sep=" "))
   }
   
-  ## Fetching pedo-climatic zone
-  farm_parameters = mongo(collection="farmparameters", 
-                          db="carbonplus_production_db", 
-                          url=init_file$connection_string_prod
-                          )
-  farm_EnZ =  farm_parameters$find(paste('{"farmId":"',farmId,'"}',sep=""))
-  if (length(unique(farm_EnZ$enz))==1){
-    farm_EnZ = unique(farm_EnZ$enz)
-    log4r::info(
-      my_logger, 
-      paste("farmparameters collection contain unique info on EnZ for farmId", farmId, sep=" ")
-      )
-  } else if (length(unique(farm_EnZ$enz))==0){
-    log4r::error(
-      my_logger, 
-      paste("Caution: farmparameters collection doesn't contain info on EnZ for farmId", 
-            farmId, 
-            sep=" ")
-      )
-  } else if (length(unique(farm_EnZ$enz))>1){
-    log4r::error(
-      my_logger, 
-      paste("Caution: farmparameters collection content SEVERAL EnZ for farmId",
-            farmId,"leading to conflicts",
-            sep=" ")
-      )
-  }
-
   ## Reading in calculation factors (parameters) from csv files
   animal_factors <- read_csv(file.path(modelling_data_loc,"data", "carbon_share_manure.csv")) %>%
     filter(type=="manure") %>% rename(species=manure_source)
@@ -253,7 +181,7 @@ run_soil_model <- function(init_file, pars, farmId = NA, JSONfile = NA){
                                   crop_Cinputs=sum(area*crop_Cinputs),
                                   pasture_Cinputs=sum(area*pasture_Cinputs),
                                   agroforestry_Cinputs=sum(area*agroforestry_Cinputs))
-    
+  
   ################# Weather data pulling
   if(exists("debug_mode")) {
     if(debug_mode){  # will skip fetching climate data and use dummy data if debug_mode is set
