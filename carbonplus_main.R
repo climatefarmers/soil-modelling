@@ -1,4 +1,4 @@
-launching_Rscripts <- function(init_file, farmId=NA, JSONfile=NA){
+carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   
   ####################################################################
   # This script has the following functions:
