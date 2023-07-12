@@ -1,0 +1,22 @@
+fuel_type,species,Manure source,gas,crop,fertilizer_type,productivity,grazing_management,climate
+diesel,Dairy Cattle,Dairy Cattle,co2,Other,synthetic,High Productivity,Dry lot,Boreal Dry
+petrol,Other Cattle,Other Cattle,ch4,Generic Grains,organic,Low Productivity,Solid storage,Boreal Moist
+,Buffalo,Swine,n2o,Winter Wheat,,,Anaerobic digestion - biogas,Cool Temp Dry
+,Swine,Poultry,,Spring Wheat,,,Burned for fuel,Cool Temp Moist
+,Poultry,,,Barley,,,Daily Spread,Tropical Dry
+,Turkeys,,,Oats,,,Liquid/slurry,Tropical Moist
+,Ducks,,,Maize,,,Uncovered anaerobic lagoon,Tropical Montane
+,Sheep,,,Rye,,,All Systems,Tropical Wet
+,Goats,,,Rice,,,,Warm Temp Dry
+,Horses,,,Millet,,,,Warm Temp Moist
+,Mules/Asses,,,Sorghum,,,,
+,Camels,,,Beans and Pulses,,,,
+,Deer,,,Soybeans,,,,
+,,,,Potatoes and Tubers,,,,
+,,,,Peanuts,,,,
+,,,,Alfalfa,,,,
+,,,,Non-legume hay,,,,
+,,,,N-fixing forages,,,,
+,,,,Non-N-fixing forages,,,,
+,,,,Perennial Grasses,,,,
+,,,,Grass-Clover Mixtures,,,,

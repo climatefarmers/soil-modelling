@@ -1,0 +1,14 @@
+country,natural_system,pedo_climatic_area,climate_zone,climate_wet_or_dry,mediansoc_tCha,meansoc_tCperha,depth,clay_pc,dr_ratio_agroforestry,dr_ratio_non_irrigated,dr_ratio_irrigated,soc_tCperha_sd,clay_pc_sd,souce,comment
+Portugal,mediterranean_forest,Mediterranean south,Warm Temp Dry,dry,47.82,53.74,25,13.14,0.25,0.67,1.44,38.48,9.47,WoSIS,using all clay contents
+Portugal,mediterranean_forest,Mediterranean north,Warm Temp Dry,dry,49.64,58.19,25,13.29,0.25,0.67,1.44,42.16,1.6,WoSIS,clay content between 10.13 and 16.13
+,,,,,,,,,,,,,,,
+,,,Boreal Dry,,,,,,,,,,,,
+,,,Boreal Moist,,,,,,,,,,,,
+,,,Cool Temp Dry,,,,,,,,,,,,
+,,,Cool Temp Moist,,,,,,,,,,,,
+,,,Tropical Dry,,,,,,,,,,,,
+,,,Tropical Moist,,,,,,,,,,,,
+,,,Tropical Montane,,,,,,,,,,,,
+,,,Tropical Wet,,,,,,,,,,,,
+,,,Warm Temp Dry,,,,,,,,,,,,
+,,,Warm Temp Moist,,,,,,,,,,,,
