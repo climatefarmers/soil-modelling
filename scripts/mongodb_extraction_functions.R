@@ -341,7 +341,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             quantity_t_ha = c(new.as_numeric(year_chosen$manureApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentManureImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentManureImported[i])==TRUE,0,
-                                            new.as_numeric(year_chosen$percentManureImported[i])))),
+                                            new.as_numeric(year_chosen$percentManureImported[i])/100))),
             remaining_frac = c(1)))
         }
       }
@@ -355,7 +355,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             quantity_t_ha = c(new.as_numeric(year_chosen$compostApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentCompostImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentCompostImported[i])==TRUE,0,
-                                            new.as_numeric(year_chosen$percentCompostImported[i])))),
+                                            new.as_numeric(year_chosen$percentCompostImported[i])/100))),
             remaining_frac = c(1)))
         }
       }
@@ -369,7 +369,7 @@ get_add_manure_inputs = function(landUseSummaryOrPractices){
             quantity_t_ha = c(new.as_numeric(year_chosen$hayStrawApplication[i])), 
             imported_frac = c(ifelse(is.null(year_chosen$percentageOfHayStrawImported[i])==TRUE,0,
                                      ifelse(is.na(year_chosen$percentageOfHayStrawImported[i])==TRUE,0,
-                                            new.as_numeric(year_chosen$percentageOfHayStrawImported[i])))),
+                                            new.as_numeric(year_chosen$percentageOfHayStrawImported[i])/100))),
             remaining_frac = c(ifelse(is.null(year_chosen$baleGrazing[i])==TRUE, 1, # case were variable isn't found
                                       ifelse(is.na(year_chosen$baleGrazing[i])==TRUE, 1, # case were variable had no value
                                              ifelse(year_chosen$baleGrazing[i]==TRUE, # case were baleGrazing happens
