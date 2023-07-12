@@ -451,7 +451,7 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
   ## Final data frames by taking the average over the runs
   # Results of soc and co2 per year
   step_in_table_final <- step_in_table %>% group_by(year) %>% 
-    summarise(yearly_CO2diff_average=mean(yearly_CO2diff),
+    summarise(yearly_CO2diff_mean=mean(yearly_CO2diff),
               yearly_CO2diff_sd=sd(yearly_CO2diff),
               baseline_step_total_CO2_mean=mean(baseline_step_total_CO2),
               baseline_step_total_CO2_var=var(baseline_step_total_CO2),
@@ -460,17 +460,17 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
               cov_step_total_CO2=cov(baseline_step_total_CO2, holistic_step_total_CO2),
               sd_diff=sqrt(baseline_step_total_CO2_var+holistic_step_total_CO2_var-2*cov_step_total_CO2)#this equal yearly_CO2diff_sd
     )%>%
-    mutate(yearly_CO2diff_final=round(yearly_CO2diff_average-1.96*yearly_CO2diff_sd)) %>%
-    select(year, yearly_CO2diff_final, yearly_CO2diff_average, 
+    mutate(yearly_CO2diff_final=round(yearly_CO2diff_mean-1.96*yearly_CO2diff_sd)) %>%
+    select(year, yearly_CO2diff_final, yearly_CO2diff_mean, 
            yearly_CO2diff_sd, baseline_step_total_CO2_mean, 
            baseline_step_total_CO2_var, holistic_step_total_CO2_mean, 
            holistic_step_total_CO2_var, cov_step_total_CO2,sd_diff)
 
-  # Fernando: these *_results_final dataframes are later not used!
   # Results of soc per parcel per scenario/year
   all_results_final <- all_results %>% group_by(scenario, parcel_ID, time, farm_frac) %>% 
     summarise(SOC_mean=mean(SOC), SOC_sd=sd(SOC)) %>%
     select(parcel_ID, farm_frac, time, scenario, SOC_mean, SOC_sd)
+  
   # Results of soc on farm level
   farm_results_final <- farm_results %>% group_by(time, scenario) %>% 
     summarise(SOC_farm_mean=mean(SOC_farm),

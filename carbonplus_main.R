@@ -35,7 +35,7 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   ## Soil model settings -------------------------------------------------------
   
   pars = list(
-    n_run = 3,
+    n_run = 30,
     sd_future_mod=1,
     sd_field_carbon_in=0.10,
     CFmade_grazing_estimations_Yes_No="No"
@@ -156,17 +156,22 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
                                         farms_everything=farms_everything,
                                         farm_EnZ=farm_EnZ)
   
+  soil_results_yearly <- soil_results_out[[1]]
+  soil_results_monthly <- soil_results_out[[2]]
+  
   emissions <- call_lca(init_file=init_file,
                         farms_everything=farms_everything,
                         farm_EnZ = farm_EnZ)
 
-  yearly_results <- soil_results_out[[1]] %>%
-    mutate(CO2eq_soil=yearly_CO2diff_final) %>% 
-    select(year, CO2eq_soil) %>%
+  yearly_results <- soil_results_yearly %>%
+    mutate(CO2eq_soil_final=yearly_CO2diff_final,
+           CO2eq_soil_mean=yearly_CO2diff_mean,
+           CO2eq_soil_sd=yearly_CO2diff_sd) %>% 
+    select(year, CO2eq_soil_final, CO2eq_soil_mean, CO2eq_soil_sd) %>%
     mutate(CO2eq_emissions=emissions$total_emissions_diff_tCO2_eq[2:11])
   
   yearly_results <- yearly_results %>%
-    mutate(yearly_certificates = CO2eq_soil - CO2eq_emissions)
+    mutate(CO2eq_total = CO2eq_soil_final - CO2eq_emissions)
   
   readLines(my_logfile)
   
@@ -182,35 +187,38 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   # Upload to database
   carbonresults_collection = mongo(collection="carbonresults", db=db, url=connection_string)
   carbonresults_collection$update(paste0('{"farmId":"',farmId,'"',
-                                         ',"resultsGenerationYear":', currentYear,
-                                         ',"modelVersion":"', full_tag,'"',
+                                         ',"runInfo.resultsGenerationYear":', currentYear,
+                                         ',"runInfo.modelVersion":"', full_tag,'"',
+                                         ',"farmInfo.projectStartYear":', as.numeric(farms_everything$farmInfo$startYear),
                                          '}'),
-                                  paste0('{"$set":{"resultsGenerationTime":"',currentTime,'",',
-                                         '"yearlyCO2eqTotal":[',
+                                  paste0('{"$set":{',
+                                         '"farmInfo.farmId":"',farmId,'"',
+                                         ',"runInfo.resultsGenerationTime":"',currentTime,'"',
+                                         ',"runInfo.modelVersion":"', full_tag,'"',
+                                         ',"runInfo.n_runs":', pars['n_run'],
+                                         ',"runResults.yearlyCO2eqTotal":[',
+                                         paste(yearly_results$CO2eq_total, collapse = ","),
+                                         ']',
+                                         ',"runResults.yearlyCO2eqSoil":[',
+                                         paste(yearly_results$CO2eq_soil_final, collapse = ","),
+                                         ']',
+                                         ',"runResults.yearlyCO2eqEmissions":[',
                                          paste(yearly_results$CO2eq_emissions, collapse = ","),
                                          ']',
-                                         '"yearlyCO2eqSoil":[',
-                                         paste(yearly_results$CO2eq_soil, collapse = ","),
-                                         ']',
-                                         '"yearlyCO2eqEmissions":[',
-                                         paste(yearly_results$CO2eq_emissions, collapse = ","),
-                                         ']',
-                                         ',"projectStartYear":', as.numeric(farms_everything$farmInfo$startYear),
                                          '}}'),
                                   upsert=TRUE)
   
-  
+
   ## Plotting ------------------------------------------------------------------
-  farm_results_final <- soil_results_out[[2]]
   name<-paste0("Results_farm_", farmId)
-  graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
+  graph <- ggplot(data = soil_results_monthly, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
     geom_line()+
     #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
     scale_color_manual(values = c("darkred","#5CB85C"),labels = c("Modern-day","Holistic"))+
     theme(legend.position = "bottom")+
     labs(title = name)+
     xlab("Time")+
-    ylab("SOC (in tons per hectare)")
+    ylab("SOC (in tonnes per hectare)")
   print(graph)
   # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
   # # print(graph)
@@ -233,9 +241,11 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   #   # dev.off()
   
   histogram <- ggplot(yearly_results, aes(x=year, group = 1)) +
-    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
-    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
-                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
+    geom_bar(aes(y=CO2eq_soil_mean), stat="identity", fill="#5CB85C", alpha=0.7) +
+    geom_errorbar(aes(ymin = CO2eq_soil_mean-1.96*CO2eq_soil_sd,
+                      ymax = CO2eq_soil_mean+1.96*CO2eq_soil_sd, color = "95% CI"), colour="black", width=.5, show.legend = T) +
+    geom_bar(aes(y=CO2eq_emissions), stat="identity", fill="#0C785C", alpha=0.7) +
+    geom_bar(aes(y=CO2eq_total), stat="identity", fill="darkred", alpha=0.7) +
     xlab("Time")+
     ylab("Number of certificates issuable (per year)")
   print(histogram)
