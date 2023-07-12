@@ -35,7 +35,7 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   ## Soil model settings -------------------------------------------------------
   
   pars = list(
-    n_run = 30,
+    n_run = 2,
     sd_future_mod=1,
     sd_field_carbon_in=0.10,
     CFmade_grazing_estimations_Yes_No="No"
@@ -168,10 +168,11 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
            CO2eq_soil_mean=yearly_CO2diff_mean,
            CO2eq_soil_sd=yearly_CO2diff_sd) %>% 
     select(year, CO2eq_soil_final, CO2eq_soil_mean, CO2eq_soil_sd) %>%
-    mutate(CO2eq_emissions=emissions$total_emissions_diff_tCO2_eq[2:11])
+    mutate(CO2eq_emissions=emissions$emissions_diff_tCO2_eq[2:11],
+           CO2eq_leakage=emissions$leakage_tCO2_eq[2:11])
   
   yearly_results <- yearly_results %>%
-    mutate(CO2eq_total = CO2eq_soil_final - CO2eq_emissions)
+    mutate(CO2eq_total = CO2eq_soil_final - CO2eq_emissions - CO2eq_leakage)
   
   readLines(my_logfile)
   
@@ -204,6 +205,9 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
                                          ']',
                                          ',"runResults.yearlyCO2eqEmissions":[',
                                          paste(yearly_results$CO2eq_emissions, collapse = ","),
+                                         ']',
+                                         ',"runResults.yearlyCO2eqLeakage":[',
+                                         paste(yearly_results$CO2eq_leakage, collapse = ","),
                                          ']',
                                          '}}'),
                                   upsert=TRUE)
