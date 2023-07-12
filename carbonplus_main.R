@@ -35,7 +35,7 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   ## Soil model settings -------------------------------------------------------
   
   pars = list(
-    n_run = 2,
+    n_run = 30,
     sd_future_mod=1,
     sd_field_carbon_in=0.10,
     CFmade_grazing_estimations_Yes_No="No"
