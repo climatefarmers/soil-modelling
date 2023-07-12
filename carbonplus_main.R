@@ -40,10 +40,12 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
     sd_field_carbon_in=0.10,
     CFmade_grazing_estimations_Yes_No="No"
     )
-  copy_yearX_to_following_years_landUse <- FALSE
-  copy_yearX_to_following_years_livestock <- FALSE
+  
+  # To copy the practice of a single year to all others
   yearX_landuse <- 1  # setting to 0 will copy baseline
   yearX_livestock <- 1  # setting to 0 will copy baseline
+  copy_yearX_to_following_years_landUse <- FALSE
+  copy_yearX_to_following_years_livestock <- FALSE
   
   
   ## General setting -----------------------------------------------------------
@@ -58,11 +60,11 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   soilModelling_RepositoryPath <- init_file$soil_loc
   CO2emissions_RepositoryPath <- init_file$co2_emissions_loc
   source(file.path(soilModelling_RepositoryPath,"scripts","run_soil_model.R"), local = TRUE)
-  source(file.path(CO2emissions_RepositoryPath, "scripts", "call_lca.R"))
+  source(file.path(CO2emissions_RepositoryPath, "scripts", "call_lca.R"), local = TRUE)
   
   
   ## Getting the data from mongoDB ---------------------------------------------
-  
+
   # Check that only one source of farm data was provided
   if(!is.na(farmId) & !is.na(JSONfile)){
     stop("Both farmId AND JSON files were fed to the model. Please choose only one.")
@@ -73,8 +75,8 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
     JSONfile_entered = TRUE
     farms_everything = fromJSON(JSONfile)
   } else if(!is.na(farmId)) {
-    connection_string = init_file$connection_string_prod  # Other options: init_file$connection_string_cfdev
-    farms_collection = mongo(collection="farms", db="carbonplus_production_db", # Other options: db="carbonplusdb"
+    connection_string = init_file$connection_string_cfdev # Other options: init_file$connection_string_prod
+    farms_collection = mongo(collection="farms", db="carbonplusdb", # Other servers (test, prod) have different db names!
                              url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
   } else {stop("Neither farmId nor a JSON file were fed to the model.")}
@@ -135,18 +137,27 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   
   step_in_table_final <- run_soil_model(init_file=init_file,
                                         pars=pars,
-                                        farm_data=farms_everything,
+                                        farms_everything=farms_everything,
                                         farm_EnZ=farm_EnZ)
-  step_in_table_final$yearly_co2emissions <- call_lca(init_file, farms_everything) # rep(0,10)
+  
+  emissions <- call_lca(init_file=init_file,
+                        farms_everything=farms_everything,
+                        farm_EnZ = farm_EnZ)
+  
+  step_in_table_final$yearly_co2emissions_diff <- emissions$total_emissions_diff_tCO2_eq[2:11]
+  
   step_in_table_final <- step_in_table_final %>%
-    mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions)
+    mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions_diff)
   readLines(my_logfile)
   
   
   ## Push results to mongoDB ---------------------------------------------------
+  browser()
+  # Get code version info
   
-  connection_string <- init_file$connection_string_prod
-  carbonresults_collection = mongo(collection="carbonresults", db="carbonplus_prod_db", url=connection_string)
+  tag <- system2("git describe")
+    
+  carbonresults_collection = mongo(collection="carbonresults", db="carbonplusdb", url=connection_string)
   currentYear = format(Sys.Date(), "%Y")
   carbonresults_collection$update(paste('{"farmId":"',farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
                                   paste('{"$set":{"yearlyCarbonResults":[',step_in_table_final$yearly_certificates_mean[1],

@@ -1,4 +1,4 @@
-run_soil_model <- function(init_file, pars, farm_data, farm_EnZ){ 
+run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){ 
   # browser()  # debugging
   ## Log starting run message
   log4r::info(my_logger, "run_soil_model.R started running")
