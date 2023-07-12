@@ -245,14 +245,14 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
                 tilling_factor = 0.025)
   
   ## Initialising data structures
-  # Data frame per year that includes soc per year, co2 per year and certificates per year
+  # Data frame per year that includes soc per year, co2 per year and co2 difference per year
   step_in_table <- data.frame(run=c(),
                               year=c(),
                               baseline_step_SOC_per_hectare=c(),
                               holistic_step_SOC_per_hectare=c(),
                               baseline_step_total_CO2=c(),
                               holistic_step_total_CO2=c(),
-                              yearly_certificates=c())
+                              yearly_CO2diff=c())
   # Data frame that includes total soc per parcel per scenario 
   all_results<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
   # Data frame that includes total soc per farm
@@ -277,8 +277,8 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
   ## Model runs
   for (n in c(1:n_run)){
     run_ID = run_ID + 1
-    all_results_batch<-data.frame(run=c(),parcel_ID=c(),time=c(),SOC=c(),scenario=c(),farm_frac=c())
-    farm_results_batch<-data.frame(run=c(),time=c(),SOC_farm=c(),scenario=c())
+    all_results_batch <- data.frame(run=c(), parcel_ID=c(), time=c(), SOC=c(), scenario=c(), farm_frac=c())
+    farm_results_batch <- data.frame(run=c(), time=c(), SOC_farm=c(), scenario=c())
     #Choice of a random factor to normally randomize input values
     batch_coef=data.frame(field_carbon_in = rnorm(1,1,sd$field_carbon_in),
                           dr_ratio = rnorm(1,1,sd$dr_ratio),
@@ -392,7 +392,7 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
                                                      silt = batch$silt[1],
                                                      bulk_density = batch$bulk_density[1])
       starting_holistic_soil_content <- as.numeric(tail(C0_df_holistic_yearly ,1))[c(1:5)]
-      C0_df_holistic= C0_df_holistic_yearly
+      C0_df_holistic = C0_df_holistic_yearly
       # next years
       for (N in c((N_1+1):10)){
         batch_parcel_Cinputs = parcel_Cinputs %>% mutate(tot_Cinputs=tot_Cinputs*(batch_coef$field_carbon_in)**1.5)
@@ -419,12 +419,12 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
         C0_df_holistic= rbind(C0_df_holistic,C0_df_holistic_yearly)
       }
       
-      all_results_batch <- rbind(all_results_batch,data.frame(run=run_ID,
-                                                              parcel_ID=rep(parcel,264),
+      all_results_batch <- rbind(all_results_batch, data.frame(run=run_ID,
+                                                              parcel_ID=rep(parcel, 264),
                                                               time=rep(seq(as.Date("2020-1-1"), as.Date("2030-12-31"), by = "month"),2),
-                                                              SOC=c(C0_df$TOT,C0_df_mdf$TOT,C0_df$TOT,C0_df_holistic$TOT),
-                                                              scenario=c(rep("baseline",132),rep("holistic",132)),
-                                                              farm_frac=rep(farm_frac,264)))#,C0_df_baseline$TOT#,rep("current",120)
+                                                              SOC=c(C0_df$TOT, C0_df_mdf$TOT, C0_df$TOT, C0_df_holistic$TOT),
+                                                              scenario=c(rep("baseline", 132), rep("holistic", 132)),
+                                                              farm_frac=rep(farm_frac, 264)))#,C0_df_baseline$TOT#,rep("current",120)
     }
 
     farm_results_batch <- data.frame(unique(all_results_batch %>% group_by(time, scenario) %>% mutate(SOC_farm=sum(SOC*farm_frac)) %>% select(run, time, scenario, SOC_farm)))
@@ -435,98 +435,75 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
     step_holistic <- diff(step_in_results$SOC_farm[step_in_results$scenario=="holistic"])
     year_temp <- step_in_results$year[step_in_results$scenario=="holistic"][2:11]
     
-    step_in_table <- rbind(step_in_table,(data.frame(run=run_ID,
+    step_in_table <- rbind(step_in_table, (data.frame(run=run_ID,
                                                      year=year_temp,
                                                      baseline_step_SOC_per_hectare=step_baseline,
                                                      holistic_step_SOC_per_hectare=step_holistic,
                                                      baseline_step_total_CO2=step_baseline*sum(parcel_inputs$area)*44/12,
-                                                     holistic_step_total_CO2=step_holistic*sum(parcel_inputs$area)*44/12)%>%
-                                            mutate(yearly_certificates=holistic_step_total_CO2-baseline_step_total_CO2)))
-    all_results <- rbind(all_results_batch,all_results)
-    farm_results <- rbind(farm_results_batch,farm_results)
-    print(paste(paste(paste(paste("Run ",n),"over"),n_run),"done"))
+                                                     holistic_step_total_CO2=step_holistic*sum(parcel_inputs$area)*44/12) %>%
+                                            mutate(yearly_CO2diff=holistic_step_total_CO2-baseline_step_total_CO2)))
+    all_results <- rbind(all_results_batch, all_results)
+    farm_results <- rbind(farm_results_batch, farm_results)
+    print(paste(paste(paste(paste("Run ", n), "over"), n_run), "done"))
     
   } # End of model runs
   
   ## Final data frames by taking the average over the runs
-  # Results of soc, co2, certificates per year
+  # Results of soc and co2 per year
   step_in_table_final <- step_in_table %>% group_by(year) %>% 
-    summarise(yearly_certificates_average=mean(yearly_certificates),
-              yearly_certificates_sd=sd(yearly_certificates),
+    summarise(yearly_CO2diff_average=mean(yearly_CO2diff),
+              yearly_CO2diff_sd=sd(yearly_CO2diff),
               baseline_step_total_CO2_mean=mean(baseline_step_total_CO2),
               baseline_step_total_CO2_var=var(baseline_step_total_CO2),
               holistic_step_total_CO2_mean=mean(holistic_step_total_CO2),
               holistic_step_total_CO2_var=var(holistic_step_total_CO2),
-              cov_step_total_CO2=cov(baseline_step_total_CO2,holistic_step_total_CO2),
-              sd_diff=sqrt(baseline_step_total_CO2_var+holistic_step_total_CO2_var-2*cov_step_total_CO2)#this equal yearly_certificates_sd
+              cov_step_total_CO2=cov(baseline_step_total_CO2, holistic_step_total_CO2),
+              sd_diff=sqrt(baseline_step_total_CO2_var+holistic_step_total_CO2_var-2*cov_step_total_CO2)#this equal yearly_CO2diff_sd
     )%>%
-    mutate(yearly_certificates_mean=round(yearly_certificates_average-1.96*yearly_certificates_sd)) %>%
-    select(year,yearly_certificates_mean,yearly_certificates_average,yearly_certificates_sd,baseline_step_total_CO2_mean,baseline_step_total_CO2_var,holistic_step_total_CO2_mean,holistic_step_total_CO2_var,cov_step_total_CO2,sd_diff)
-  #Results of soc per parel per scenario/year
-  all_results_final <- all_results %>% group_by(scenario,parcel_ID,time,farm_frac) %>% 
+    mutate(yearly_CO2diff_final=round(yearly_CO2diff_average-1.96*yearly_CO2diff_sd)) %>%
+    select(year, yearly_CO2diff_final, yearly_CO2diff_average, 
+           yearly_CO2diff_sd, baseline_step_total_CO2_mean, 
+           baseline_step_total_CO2_var, holistic_step_total_CO2_mean, 
+           holistic_step_total_CO2_var, cov_step_total_CO2,sd_diff)
+
+  # Fernando: these *_results_final dataframes are later not used!
+  # Results of soc per parcel per scenario/year
+  all_results_final <- all_results %>% group_by(scenario, parcel_ID, time, farm_frac) %>% 
     summarise(SOC_mean=mean(SOC), SOC_sd=sd(SOC)) %>%
-    select(parcel_ID,farm_frac,time,scenario,SOC_mean,SOC_sd)
-  #Results of soc on farm level
-  farm_results_final <- farm_results %>% group_by(time,scenario) %>% 
+    select(parcel_ID, farm_frac, time, scenario, SOC_mean, SOC_sd)
+  # Results of soc on farm level
+  farm_results_final <- farm_results %>% group_by(time, scenario) %>% 
     summarise(SOC_farm_mean=mean(SOC_farm),
               SOC_farm_sd=sd(SOC_farm)) %>%
-    select(time,scenario,SOC_farm_mean,SOC_farm_sd)
+    select(time, scenario, SOC_farm_mean, SOC_farm_sd)
   
-  ## PLOTTING DATA - NO NEED TO BE DEPLOYED YET
-  name<-paste("SOC_results_farm_",farmId,sep = "")
-  graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
-    geom_line()+
-    #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
-    scale_color_manual(values = c("darkred","#5CB85C"),labels = c("Modern-day","Holistic"))+
-    theme(legend.position = "bottom")+
-    labs(title = name)+
-    xlab("Time")+
-    ylab("SOC (in tons per hectare)")
-  print(graph)
-  # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
-  # # print(graph)
-  # # dev.off()
-  # 
-  #   name<-paste("Results_farm_",project_name,sep = "")
-  #   graph <- ggplot(data = step_in_table_final, aes(x=year, group = 1)) +
-  #     geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
-  #     geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
-  #                       ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
-  #     geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
-  #     geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
-  #                       ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
-  #     labs(title = name)+
-  #     xlab("Time")+
-  #     ylab("tCO2 sequestered (each year)")
-  #   print(graph)
-  #   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
-  #   # print(graph)
-  #   # dev.off()
-  
-  histogram <- ggplot(step_in_table_final, aes(x=year, group = 1)) +
-    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
-    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
-                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
-    xlab("Time")+
-    ylab("Number of certificates issuable (per year)")
-  print(histogram)
-  log4r::info(my_logger,'Number of certificates issuable (total, before emission reductions): ',sum(step_in_table_final$yearly_certificates_mean),
-              '.\nCredits per year (before emission reductions): ', list(step_in_table_final$yearly_certificates_mean),
-              '.\nArea considered: ', round(sum(parcel_inputs$area),2),' ha.', 
-              "\nNumber of runs: ",run_ID,
+  log4r::info(my_logger,'Total soil CO2eq: ', 
+              sum(step_in_table_final$yearly_CO2diff_final),
+              '.\nCredits per year (before emission reductions): ', 
+              list(step_in_table_final$yearly_CO2diff_final),
+              '.\nArea considered: ', round(sum(parcel_inputs$area), 2), ' ha.', 
+              "\nNumber of runs: ", run_ID,
               ".\nGrazing estimations by CF (Y/N): ", pars$CFmade_grazing_estimations_Yes_No,
-              "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",sd$field_carbon_in,
-              ifelse(copy_yearX_to_following_years_landUse==TRUE,paste("\nCAUTION: Duplicated and applied land use from 'year",yearX_landuse,"' to following years in EVERY parcel.",sep=""),""),
-              ifelse(copy_yearX_to_following_years_livestock==TRUE,paste("\nCAUTION: Duplicated and applied livestock from 'year",yearX_livestock,"' to ALL following years.",sep=""),""),sep="")
-  write.csv(landUseType,file.path(init_file$soil_loc,"logs",paste("landUseType_",farms_everything$farmInfo$farmManagerFirstName,farms_everything$farmInfo$farmManagerLastName,".csv",sep="")), row.names = FALSE)
-  # name<-paste("Certificates_farm_",project_name,sep = "")
-  # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
-  # print(histogram)
-  # dev.off()
-  # write.csv(all_results_final,file.path(project_loc,project_name,"results",paste(name,"_per_parcel.csv",sep="")), row.names = TRUE)
-  # write.csv(farm_results_final,file.path(project_loc,project_name,"results",paste(name,".csv",sep="")), row.names = TRUE)
-  # write.csv(step_in_table_final,file.path(project_loc,project_name,"results",paste(name,"_yearly_steps.csv",sep="")), row.names = TRUE)
-  # save.image(file.path(project_loc,project_name,"results",paste(project_name,".RData",sep="")))
+              "\nStandard deviation used for extrinsic uncertainty of practices (Cinputs): ",
+              sd$field_carbon_in,
+              ifelse(copy_yearX_to_following_years_landUse==TRUE,
+                     paste("\nCAUTION: Duplicated and applied land use from 'year",
+                           yearX_landuse,"' to following years in EVERY parcel.",sep=""),""),
+              ifelse(copy_yearX_to_following_years_livestock==TRUE,
+                     paste("\nCAUTION: Duplicated and applied livestock from 'year",
+                           yearX_livestock,"' to ALL following years.",sep=""),""),sep="")
+  
+  write.csv(landUseType, file.path(init_file$soil_loc, "logs",
+                                    paste("landUseType_", 
+                                          farms_everything$farmInfo$farmManagerFirstName, 
+                                          farms_everything$farmInfo$farmManagerLastName,
+                                          ".csv",sep="")
+                                   ), row.names = FALSE)
+  
+  # write.csv(all_results_final, file.path(project_loc, project_name, "results", paste0(name,"_per_parcel.csv")), row.names = TRUE)
+  # write.csv(farm_results_final, file.path(project_loc, project_name, "results", paste0(name,".csv")), row.names = TRUE)
+  # write.csv(step_in_table_final, file.path(project_loc, project_name, "results", paste0(name,"_yearly_steps.csv")), row.names = TRUE)
+  # save.image(file.path(project_loc, project_name, "results", paste0(project_name, ".RData")))
   
   # Use of parcels coordinates for other applications like co-benefits
   #jsonFileOfParcelsCoordinates = toJSON(landUseSummaryOrPractices[[1]]$coordinates[c(2,3)])
@@ -537,5 +514,8 @@ run_soil_model <- function(init_file, pars, farms_everything, farm_EnZ){
   } else {
     log4r::error(my_logger, 'NAs in results.')
   }
-  return(step_in_table_final) 
+  
+  return(list(step_in_table_final=step_in_table_final,
+              farm_results_final=farm_results_final,
+              all_results_final=all_results_final))
 }

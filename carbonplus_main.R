@@ -47,6 +47,8 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   copy_yearX_to_following_years_landUse <- FALSE
   copy_yearX_to_following_years_livestock <- FALSE
   
+  server <- "dev"  # One of: "prod", dev", "test"
+  
   
   ## General setting -----------------------------------------------------------
   
@@ -63,23 +65,37 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   source(file.path(CO2emissions_RepositoryPath, "scripts", "call_lca.R"), local = TRUE)
   
   
-  ## Getting the data from mongoDB ---------------------------------------------
+  ## Get the farm data from the JSON file or MongoDB ---------------------------
 
   # Check that only one source of farm data was provided
   if(!is.na(farmId) & !is.na(JSONfile)){
-    stop("Both farmId AND JSON files were fed to the model. Please choose only one.")
+    stop("Both farmId AND JSON files were passed to the model. Please choose only one.")
   }
   
-  # Check if JSONfile or farmId exists and read the farm data from the JSON file or MongoDB, respectively
+  if(is.na(farmId) & is.na(JSONfile)){
+    stop("Both farmId AND JSON files are missing. One must be passed.")
+  }
+  
   if(!is.na(JSONfile)){
     JSONfile_entered = TRUE
     farms_everything = fromJSON(JSONfile)
-  } else if(!is.na(farmId)) {
-    connection_string = init_file$connection_string_cfdev # Other options: init_file$connection_string_prod
-    farms_collection = mongo(collection="farms", db="carbonplusdb", # Other servers (test, prod) have different db names!
-                             url=connection_string)
+  }
+  
+  if(!is.na(farmId)) {
+    if(server == "prod") {
+      connection_string = init_file$connection_string_prod
+      db <- "carbonplus_production_db"
+    } else if(server == "dev") {
+      connection_string = init_file$connection_string_cfdev
+      db <- "carbonplusdb"
+    } else if(server == "test") {
+      connection_string = init_file$connection_string_test
+      db <- "test_server_db"
+    } else {stop("Wrong value for variable: server")}
+    farms_collection = mongo(collection="farms", db=db, url=connection_string)
     farms_everything = farms_collection$find(paste('{"farmInfo.farmId":"',farmId,'"}',sep=""))
-  } else {stop("Neither farmId nor a JSON file were fed to the model.")}
+  }
+  
   
   # Checking correctness and unicity of farmIds
   if (is.null(farms_everything$farmInfo)){ # Can this be TRUE? Because already used above to select the data. Move to above?
@@ -135,7 +151,7 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   
   ## Running the soil model and emissions calculations ---------------------
   
-  step_in_table_final <- run_soil_model(init_file=init_file,
+  soil_results_out <- run_soil_model(init_file=init_file,
                                         pars=pars,
                                         farms_everything=farms_everything,
                                         farm_EnZ=farm_EnZ)
@@ -143,35 +159,90 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   emissions <- call_lca(init_file=init_file,
                         farms_everything=farms_everything,
                         farm_EnZ = farm_EnZ)
+
+  yearly_results <- soil_results_out[[1]] %>%
+    mutate(CO2eq_soil=yearly_CO2diff_final) %>% 
+    select(year, CO2eq_soil) %>%
+    mutate(CO2eq_emissions=emissions$total_emissions_diff_tCO2_eq[2:11])
   
-  step_in_table_final$yearly_co2emissions_diff <- emissions$total_emissions_diff_tCO2_eq[2:11]
+  yearly_results <- yearly_results %>%
+    mutate(yearly_certificates = CO2eq_soil - CO2eq_emissions)
   
-  step_in_table_final <- step_in_table_final %>%
-    mutate(yearly_certificates_mean = yearly_certificates_mean - yearly_co2emissions_diff)
   readLines(my_logfile)
   
   
   ## Push results to mongoDB ---------------------------------------------------
-  browser()
-  # Get code version info
   
-  tag <- system2("git describe")
-    
-  carbonresults_collection = mongo(collection="carbonresults", db="carbonplusdb", url=connection_string)
-  currentYear = format(Sys.Date(), "%Y")
-  carbonresults_collection$update(paste('{"farmId":"',farmId,'","resultsGenerationYear":',currentYear,'}',sep=""),
-                                  paste('{"$set":{"yearlyCarbonResults":[',step_in_table_final$yearly_certificates_mean[1],
-                                        ',',step_in_table_final$yearly_certificates_mean[2],
-                                        ',',step_in_table_final$yearly_certificates_mean[3],
-                                        ',',step_in_table_final$yearly_certificates_mean[4],
-                                        ',',step_in_table_final$yearly_certificates_mean[5],
-                                        ',',step_in_table_final$yearly_certificates_mean[6],
-                                        ',',step_in_table_final$yearly_certificates_mean[7],
-                                        ',',step_in_table_final$yearly_certificates_mean[8],
-                                        ',',step_in_table_final$yearly_certificates_mean[9],
-                                        ',',step_in_table_final$yearly_certificates_mean[10],
-                                        '],"startYear":',
-                                        as.numeric(farms_everything$farmInfo$startYear),'}}',sep=""),
-                                  upsert=TRUE)#year',i,'": ',round(step_in_table_final$yearly_certificates_mean[i]),'}}',sep=""))
-  return(step_in_table_final)
+  # Get code version and time info
+  tag <- system2(command = "git", args = "describe", stdout = TRUE)
+  full_tag <- paste0("R-model-version: ", tag)
+  currentTime <- format(Sys.time(), "%Y-%m-%d %H:%M")
+  currentYear <- format(Sys.time(), "%Y")
+
+  # Upload to database
+  carbonresults_collection = mongo(collection="carbonresults", db=db, url=connection_string)
+  carbonresults_collection$update(paste0('{"farmId":"',farmId,'"',
+                                         ',"resultsGenerationYear":', currentYear,
+                                         ',"modelVersion":"', full_tag,'"',
+                                         '}'),
+                                  paste0('{"$set":{"resultsGenerationTime":"',currentTime,'",',
+                                         '"yearlyCO2eqTotal":[',
+                                         paste(yearly_results$CO2eq_emissions, collapse = ","),
+                                         ']',
+                                         '"yearlyCO2eqSoil":[',
+                                         paste(yearly_results$CO2eq_soil, collapse = ","),
+                                         ']',
+                                         '"yearlyCO2eqEmissions":[',
+                                         paste(yearly_results$CO2eq_emissions, collapse = ","),
+                                         ']',
+                                         ',"projectStartYear":', as.numeric(farms_everything$farmInfo$startYear),
+                                         '}}'),
+                                  upsert=TRUE)
+  
+  
+  ## Plotting ------------------------------------------------------------------
+  farm_results_final <- soil_results_out[[2]]
+  name<-paste0("Results_farm_", farmId)
+  graph <- ggplot(data = farm_results_final, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
+    geom_line()+
+    #geom_errorbar(aes(ymin=SOC_farm_mean-SOC_farm_sd, ymax=SOC_farm_mean+SOC_farm_sd), width=.1) +
+    scale_color_manual(values = c("darkred","#5CB85C"),labels = c("Modern-day","Holistic"))+
+    theme(legend.position = "bottom")+
+    labs(title = name)+
+    xlab("Time")+
+    ylab("SOC (in tons per hectare)")
+  print(graph)
+  # # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
+  # # print(graph)
+  # # dev.off()
+  # 
+  #   name<-paste("Results_farm_",project_name,sep = "")
+  #   graph <- ggplot(data = yearly_results, aes(x=year, group = 1)) +
+  #     geom_bar(aes(y = baseline_step_total_CO2_mean), stat="identity", fill="darkred", alpha=0.7)+
+  #     geom_errorbar(aes(ymin = baseline_step_total_CO2_mean-1.96*sqrt(baseline_step_total_CO2_var),
+  #                       ymax = baseline_step_total_CO2_mean+1.96*sqrt(baseline_step_total_CO2_var)), colour="black", width=.5)+
+  #     geom_bar(aes(y = holistic_step_total_CO2_mean), stat="identity", fill="#5CB85C", alpha=0.7)+
+  #     geom_errorbar(aes(ymin = holistic_step_total_CO2_mean-1.96*sqrt(holistic_step_total_CO2_var),
+  #                       ymax = holistic_step_total_CO2_mean+1.96*sqrt(holistic_step_total_CO2_var), color = "95% CI"), colour="black", width=.5, show.legend = T)+
+  #     labs(title = name)+
+  #     xlab("Time")+
+  #     ylab("tCO2 sequestered (each year)")
+  #   print(graph)
+  #   # png(file.path(project_loc,project_name,"results",paste(name,".png",sep="")))
+  #   # print(graph)
+  #   # dev.off()
+  
+  histogram <- ggplot(yearly_results, aes(x=year, group = 1)) +
+    geom_bar( aes(y=yearly_certificates_average), stat="identity", fill="#5CB85C", alpha=0.7)+
+    geom_errorbar(aes(ymin = yearly_certificates_average-1.96*yearly_certificates_sd,
+                      ymax = yearly_certificates_average+1.96*yearly_certificates_sd, color = "95% CI"), colour="black", width=.5, show.legend = T)+
+    xlab("Time")+
+    ylab("Number of certificates issuable (per year)")
+  print(histogram)
+  # png(file.path(project_loc, project_name, "results", paste0(farmId, ".png")))
+  # print(histogram)
+  # dev.off()
+  
+  ## End function --------------------------------------------------------------
+  return(yearly_results)
 }
