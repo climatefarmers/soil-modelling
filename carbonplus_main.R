@@ -35,7 +35,7 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   ## Soil model settings -------------------------------------------------------
   
   pars = list(
-    n_run = 2,
+    n_run = 30,
     sd_future_mod=1,
     sd_field_carbon_in=0.10,
     CFmade_grazing_estimations_Yes_No="No"
@@ -191,14 +191,20 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
     resultsGenerationTime=currentTime,
     n_runs=pars['n_run']
   )
+
   farms_everything$modelResults <- data.frame(
-    yearlyCO2eqTotal=paste(yearly_results$CO2eq_total, collapse = ","),
-    yearlyCO2eqSoil=paste(yearly_results$CO2eq_soil_final, collapse = ","),
-    yearlyCO2eqEmissions=paste(yearly_results$CO2eq_emissions, collapse = ","),
-    yearlyCO2eqLeakage=paste(yearly_results$CO2eq_leakage, collapse = ",")
+    yearlyCO2eqTotal=NA,
+    yearlyCO2eqSoil=NA,
+    yearlyCO2eqEmissions=NA,
+    yearlyCO2eqLeakage=NA
   )
-  farms_everything$modelParameters <- data.frame(pars) 
+  farms_everything$modelResults$yearlyCO2eqTotal=list(c(yearly_results$CO2eq_total))
+  farms_everything$modelResults$yearlyCO2eqSoil=list(c(yearly_results$CO2eq_soil_final))
+  farms_everything$modelResults$yearlyCO2eqEmissions=list(c(yearly_results$CO2eq_emissions))
+  farms_everything$modelResults$yearlyCO2eqLeakage=list(c(yearly_results$CO2eq_leakage))
   
+  farms_everything$modelParameters <- data.frame(pars) 
+
   # Upload to database
   carbonresults_collection = mongo(collection="carbonresults", db=db, url=connection_string)
   carbonresults_collection$insert(farms_everything)
