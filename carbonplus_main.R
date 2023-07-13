@@ -184,35 +184,32 @@ carbonplus_main <- function(init_file, farmId=NA, JSONfile=NA){
   full_tag <- paste0("R-model-version: ", tag)
   currentTime <- format(Sys.time(), "%Y-%m-%d %H:%M")
   currentYear <- format(Sys.time(), "%Y")
+  
+  farms_everything$modelInfo <- data.frame(
+    modelVersion=full_tag,
+    resultsGenerationYear=currentYear,
+    resultsGenerationTime=currentTime,
+    n_runs=pars['n_run']
+  )
+
+  farms_everything$modelResults <- data.frame(
+    yearlyCO2eqTotal=NA,
+    yearlyCO2eqSoil=NA,
+    yearlyCO2eqEmissions=NA,
+    yearlyCO2eqLeakage=NA
+  )
+  farms_everything$modelResults$yearlyCO2eqTotal=list(c(yearly_results$CO2eq_total))
+  farms_everything$modelResults$yearlyCO2eqSoil=list(c(yearly_results$CO2eq_soil_final))
+  farms_everything$modelResults$yearlyCO2eqEmissions=list(c(yearly_results$CO2eq_emissions))
+  farms_everything$modelResults$yearlyCO2eqLeakage=list(c(yearly_results$CO2eq_leakage))
+  
+  farms_everything$modelParameters <- data.frame(pars) 
 
   # Upload to database
   carbonresults_collection = mongo(collection="carbonresults", db=db, url=connection_string)
-  carbonresults_collection$update(paste0('{"farmId":"',farmId,'"',
-                                         ',"runInfo.resultsGenerationYear":', currentYear,
-                                         ',"runInfo.modelVersion":"', full_tag,'"',
-                                         ',"farmInfo.projectStartYear":', as.numeric(farms_everything$farmInfo$startYear),
-                                         '}'),
-                                  paste0('{"$set":{',
-                                         '"farmInfo.farmId":"',farmId,'"',
-                                         ',"runInfo.resultsGenerationTime":"',currentTime,'"',
-                                         ',"runInfo.modelVersion":"', full_tag,'"',
-                                         ',"runInfo.n_runs":', pars['n_run'],
-                                         ',"runResults.yearlyCO2eqTotal":[',
-                                         paste(yearly_results$CO2eq_total, collapse = ","),
-                                         ']',
-                                         ',"runResults.yearlyCO2eqSoil":[',
-                                         paste(yearly_results$CO2eq_soil_final, collapse = ","),
-                                         ']',
-                                         ',"runResults.yearlyCO2eqEmissions":[',
-                                         paste(yearly_results$CO2eq_emissions, collapse = ","),
-                                         ']',
-                                         ',"runResults.yearlyCO2eqLeakage":[',
-                                         paste(yearly_results$CO2eq_leakage, collapse = ","),
-                                         ']',
-                                         '}}'),
-                                  upsert=TRUE)
+  carbonresults_collection$insert(farms_everything)
   
-
+  
   ## Plotting ------------------------------------------------------------------
   name<-paste0("Results_farm_", farmId)
   graph <- ggplot(data = soil_results_monthly, aes(x = time, y = SOC_farm_mean, colour=scenario)) +
